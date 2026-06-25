@@ -44,18 +44,26 @@ Thaleia の UI は「突合差分」そのものが中身で、仕様編集も�
 無効表示にする。SPA はビルド不要で `routes/api.ts` の `/api/*` (config / snapshots /
 snapshots/:label) を読む。
 
+## 関数粒度トレース (`GET /api/trace`)
+
+ビューアの実装ありドメイン行の「関数 ▾」で、そのドメインを実装する**関数**を列挙し、
+各関数に Anatomia の spec-links (コード↔リポ spec 節) を結びつけて表示する
+(企画↔実装トレーサビリティの関数粒度)。詳細 → [spec/feature/trace.md](spec/feature/trace.md)。
+
 ## 構成
 
 ```
 src/
 ├── index.ts            Hono server entry (port 8890)
-├── config.ts           env (PRAEFORMA_/ANATOMIA_ BASE_URL/TOKEN/WEB_URL)
+├── config.ts           env (PRAEFORMA_/ANATOMIA_ BASE_URL/TOKEN/WEB_URL, THALEIA_LLM_RANK 他)
 ├── clients/            上流クライアント (praeforma / anatomia)
-├── reconcile/          突合: types / match(純粋) / engine(I/O)
-├── relay/              MUSA リレー: types / select(純粋) / engine(I/O)
+├── reconcile/          突合: types / match(純粋) / diff(純粋) / engine(I/O)
+├── relay/              MUSA リレー: types / select(純粋) / rank(LLM) / engine(I/O)
+├── trace/              関数粒度トレース: types / build(純粋) / engine(I/O)
+├── llm/                claude -p spawn (relay ランキング用)
 ├── links/              deeplink(純粋): 行→各サービスへの URL 生成
-├── routes/             /reconcile + /relay/anatomia + /api/* + 突合ビューア
-└── store/              data/*.json スナップショット (save/load/list)
+├── routes/             /reconcile + /relay/anatomia + /api/trace + /api/* + 突合ビューア
+└── store/              data/*.json スナップショット + history (save/load/loadPrevious/list)
 ```
 
 ## 起動
