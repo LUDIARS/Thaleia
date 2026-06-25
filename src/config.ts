@@ -13,6 +13,12 @@ export interface ThaleiaConfig {
   praeformaWebUrl: string | null;
   /** Anatomia web の URL (ディープリンク先)。 未設定なら anatomiaBaseUrl を流用。 */
   anatomiaWebUrl: string | null;
+  /** relay の LLM 意味ランキングを有効化するか (THALEIA_LLM_RANK=1)。 既定 false=構造選択のみ。 */
+  llmRank: boolean;
+  /** ランキング用 claude CLI。 Windows は git-bash wrapper を差せる。 */
+  claudeBin: string;
+  /** ランキング後に残す上限件数。 */
+  rankTopK: number;
 }
 
 export function loadConfig(): ThaleiaConfig {
@@ -24,5 +30,8 @@ export function loadConfig(): ThaleiaConfig {
     praeformaWebUrl: process.env.PRAEFORMA_WEB_URL ?? null,
     // Anatomia は web server 自身が UI も兼ねるので、 専用 URL 未設定なら API base を流用。
     anatomiaWebUrl: process.env.ANATOMIA_WEB_URL ?? process.env.ANATOMIA_BASE_URL ?? null,
+    llmRank: process.env.THALEIA_LLM_RANK === '1',
+    claudeBin: process.env.THALEIA_CLAUDE_BIN ?? 'claude',
+    rankTopK: Number(process.env.THALEIA_RANK_TOP_K ?? 40),
   };
 }
