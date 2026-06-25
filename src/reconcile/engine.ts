@@ -23,16 +23,22 @@ export async function runReconcile(
   params: ReconcileParams,
 ): Promise<ReconcileResult> {
   const pfDomains = await pf.listDomains(params.pfProjectId);
-  const idToName = new Map(pfDomains.map((d) => [d.id, d.name]));
+  const pfLayouts = await pf.listLayouts(params.pfProjectId);
+  const domainIdToName = new Map(pfDomains.map((d) => [d.id, d.name]));
+  const layoutIdToName = new Map(pfLayouts.map((l) => [l.id, l.name]));
 
   const specRows = await pf.listSpecs(params.pfProjectId);
   const pfSpecs: PfSpec[] = [];
   for (const s of specRows) {
     const targets = await pf.getSpecTargets(params.pfProjectId, s.id);
-    // kind==='domain' の target を ドメイン名に解決 ('layout'=scene は v1 対象外)。
+    // kind==='domain' → ドメイン名、 kind==='layout' → シーン名に解決。
     const targetDomains = targets
       .filter((t) => t.kind === 'domain')
-      .map((t) => idToName.get(t.refId))
+      .map((t) => domainIdToName.get(t.refId))
+      .filter((x): x is string => Boolean(x));
+    const targetScenes = targets
+      .filter((t) => t.kind === 'layout')
+      .map((t) => layoutIdToName.get(t.refId))
       .filter((x): x is string => Boolean(x));
     pfSpecs.push({
       id: s.id,
@@ -41,10 +47,12 @@ export async function runReconcile(
       status: s.status,
       priority: s.priority,
       targetDomains,
+      targetScenes,
     });
   }
 
   const anatomiaDomains = await an.listDomains(params.anatomiaProject);
+  const anatomiaScreens = await an.listScreens(params.anatomiaProject);
 
   const result = reconcile({
     project: params.label,
@@ -53,6 +61,8 @@ export async function runReconcile(
     pfDomains,
     pfSpecs,
     anatomiaDomains,
+    pfLayouts,
+    anatomiaScreens,
   });
   return { ...result, generatedAt: params.now };
 }

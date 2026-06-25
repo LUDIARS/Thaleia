@@ -69,13 +69,16 @@ gapCount)、generatedAt 降順。トップのカード用。
 
 ### Praeforma (`clients/praeforma.ts`、bearer = Cernere service token)
 - `GET /api/projects/:pid/domains` → `{ items: [{ id, name, description }] }`
+- `GET /api/projects/:pid/layouts` → `{ items: [{ id, name, description }] }` (= シーン)
 - `GET /api/projects/:pid/specs` → `{ items: [{ id, code, title, status, priority }] }`
 - `GET /api/projects/:pid/specs/:sid` → `{ targets: [{ kind, refId }] }`
-  (`kind==="domain"` の `refId` を domains の id→name で解決して targetDomains にする)
+  (`kind==="domain"`→domains, `kind==="layout"`→layouts を id→name で解決し
+  targetDomains/targetScenes にする)
 
 ### Anatomia (`clients/anatomia.ts`、loopback 無認証)
 - `GET /api/domains?project=<id>` → `{ domains: string[] }`
   (実装関数を持つ検出ドメイン名のみ。存在 = implementorCount 1 とみなす)
+- `GET /api/projects/:id/screens` → `{ screens:[{ name, ... }] }` (検出 UI スクリーン=シーン。存在=実装あり)
 - `GET /api/graph?project=<id>` → `{ nodes:[{ id,name,kind,sourceRange.filePath }], edges:[{ from,to,kind }] }`
   (関数粒度のコードグラフ全量。relay が部分グラフへ絞り込む)
 - `GET /api/projects/:id/domain-view` → `{ views:[{ domain, implementors:string[] }] }`

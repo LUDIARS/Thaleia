@@ -157,23 +157,38 @@ function render(r){
    '<td><span class="badge '+m.status+'">'+esc(STATUS_JA[m.status]||m.status)+'</span></td>'+
    '<td>'+acts.join('')+'</td></tr>';
  }).join('');
- // 仕様カバレッジ。
- const sc=r.specCoverage.map(s=>
-  '<tr><td>'+esc(s.specCode)+'</td><td>'+esc(s.specTitle)+'</td><td>'+esc((s.targetDomains||[]).join(', ')||'—')+'</td>'+
+ // シーン(layout)突合行 (domain と同形。 旧スナップショットは sceneMatches 無し)。
+ const sm=(r.sceneMatches||[]).map(m=>{
+  const acts=[];
+  if(m.pfScene)acts.push(lnk(m.links&&m.links.praeforma,'仕様を編集 ✎'));
+  if(m.anatomiaScreen)acts.push(lnk(m.links&&m.links.anatomia,'実装を見る ↗'));
+  return '<tr><td>'+esc(m.pfScene??'—')+'</td><td>'+esc(m.anatomiaScreen??'—')+'</td>'+
+   '<td><span class="badge '+m.status+'">'+esc(STATUS_JA[m.status]||m.status)+'</span></td>'+
+   '<td>'+acts.join('')+'</td></tr>';
+ }).join('');
+ const hasScenes=(su.pfScenes||0)>0||(su.anatomiaScreens||0)>0;
+ // 仕様カバレッジ (target は domain + scene)。
+ const sc=r.specCoverage.map(s=>{
+  const tgt=[...(s.targetDomains||[]),...((s.targetScenes||[]).map(x=>'scene:'+x))].join(', ')||'—';
+  return '<tr><td>'+esc(s.specCode)+'</td><td>'+esc(s.specTitle)+'</td><td>'+esc(tgt)+'</td>'+
   '<td class="'+(s.implemented?'yes':'no')+'">'+(s.implemented?'実装あり':'未実装')+'</td>'+
   '<td class="muted">'+esc(s.evidence)+'</td>'+
-  '<td>'+lnk(s.praeformaUrl,'仕様を開く ✎')+'</td></tr>').join('');
+  '<td>'+lnk(s.praeformaUrl,'仕様を開く ✎')+'</td></tr>';
+ }).join('');
  // ギャップ・ワークリスト (リンクは詳細行から引く)。
  const specUrl={};r.specCoverage.forEach(s=>{specUrl[s.specCode]=s.praeformaUrl});
  const codeUrl={};r.domainMatches.forEach(m=>{if(m.status==='code-only')codeUrl[m.anatomiaDomain]=m.links&&m.links.anatomia});
+ const screenUrl={};(r.sceneMatches||[]).forEach(m=>{if(m.status==='code-only')screenUrl[m.anatomiaScreen]=m.links&&m.links.anatomia});
  const g1=(r.gaps.specsWithoutImpl||[]).map(c=>'<li>'+esc(c)+' '+lnk(specUrl[c],'仕様へ ✎')+'</li>').join('')||'<li class="empty">なし</li>';
  const g2=(r.gaps.codeDomainsWithoutSpec||[]).map(n=>'<li>'+esc(n)+' '+lnk(codeUrl[n],'実装へ ↗')+'</li>').join('')||'<li class="empty">なし</li>';
+ const g3=(r.gaps.codeScreensWithoutSpec||[]).map(n=>'<li>'+esc(n)+' '+lnk(screenUrl[n],'実装へ ↗')+'</li>').join('')||'<li class="empty">なし</li>';
 
  $('#detail').style.display='block';
  $('#detail').innerHTML=
   '<h2>'+esc(r.project)+' <span class="muted" style="font-weight:400">('+esc((r.generatedAt||'').replace('T',' ').slice(0,16))+')</span></h2>'+
   '<div class="stat">'+
    c('Pfドメイン',su.pfDomains)+c('実装ドメイン',su.anatomiaDomains)+c('一致',su.matchedDomains)+
+   (hasScenes?c('Pfシーン',su.pfScenes)+c('実装スクリーン',su.anatomiaScreens)+c('シーン一致',su.matchedScenes):'')+
    c('仕様',su.specs)+c('実装済仕様',su.implementedSpecs)+'</div>'+
   '<div class="legend">'+
    '<span class="badge matched">一致</span>表記そのまま '+
@@ -181,12 +196,17 @@ function render(r){
    '<span class="badge spec-only">実装欠落</span>仕様のみ '+
    '<span class="badge code-only">仕様欠落</span>実装のみ</div>'+
   '<table><tr><th>Praeforma(仕様)</th><th>Anatomia(実装)</th><th>状態</th><th>アクション</th></tr>'+dm+'</table>'+
+  (hasScenes?
+   '<h2 style="margin-top:18px">シーン(layout)突合</h2>'+
+   '<table><tr><th>Praeforma(シーン)</th><th>Anatomia(スクリーン)</th><th>状態</th><th>アクション</th></tr>'+sm+'</table>'
+   :'')+
   '<h2 style="margin-top:18px">仕様カバレッジ</h2>'+
   '<table><tr><th>code</th><th>title</th><th>target</th><th>実装</th><th>根拠</th><th>アクション</th></tr>'+sc+'</table>'+
   '<h2 style="margin-top:18px">ギャップ・ワークリスト</h2>'+
   '<div class="gaps">'+
    '<div class="gapbox"><h3 class="no">未実装の仕様 (Praeforma へ)</h3><ul>'+g1+'</ul></div>'+
    '<div class="gapbox"><h3 class="code-only">仕様の無い実装ドメイン (Anatomia へ)</h3><ul>'+g2+'</ul></div>'+
+   (hasScenes?'<div class="gapbox"><h3 class="code-only">仕様の無い実装スクリーン (Anatomia へ)</h3><ul>'+g3+'</ul></div>':'')+
   '</div>';
  $('#detail').scrollIntoView({behavior:'smooth',block:'start'});
 }
