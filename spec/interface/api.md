@@ -62,8 +62,14 @@ gapCount)、generatedAt 降順。トップのカード用。
 
 リンク URL は `links/deeplink.ts` の純粋関数で生成。web URL 未設定なら null を返し、
 ビューアは無効表示にする (無言で誤ったホストへリンクしない)。
-遷移先ルート (`/projects/:id?focus=domain:<name>` 等) は暫定で、各フロントの確定後に
-`deeplink.ts` だけ直せばよい。
+
+遷移先ルートは実フロントで確認済 (2026-06-26):
+- Praeforma `/projects/:pid?tab=domains|specs|layouts&focus=<x>` (ProjectShowPage、`web/src/main.tsx`)
+- Anatomia `/?project=<id>&focus=<x>` (管理パネル SPA、`src/adapters/web/server.ts` の `GET /`)
+
+パスと `tab`/`project` パラメータ名は実値に一致。ただし**両フロントは現状 URL クエリを
+読まない**ため、リンクは該当ページに着地するが個別エンティティへのフォーカスは未消費
+(将来フロントが `useSearchParams` で focus を読めば `deeplink.ts` 不変で効く)。
 
 ## 上流クライアント契約
 
