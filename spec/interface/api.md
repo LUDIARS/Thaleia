@@ -10,11 +10,13 @@
 // request
 { "label": "PrivateGame", "pf_project": "<Praeforma project id>",
   "anatomia_project": "<Anatomia project id>" }   // anatomia_project 省略時は pf_project を流用
-// response 200 = ReconcileResult (feature/reconcile.md), data/<label>.json に保存
+// response 200 = ReconcileResult + diff (feature/reconcile.md), data/<label>.json に保存
 ```
 - `label` / `pf_project` 必須 (無ければ 400)
 - 上流未設定: `503 { error:"praeforma_unconfigured"|"anatomia_unconfigured", hint }`
 - 上流エラー: `502 { error:"upstream_failed", detail }`
+- 応答の `diff` = 保存前の最新と比較した前回比 (初回は `hasPrevious:false`)。保存時に
+  直前の最新は `data/history/<slug>/<generatedAt>.json` へ退避される
 
 ### `GET /reconcile?project=<label>`
 保存済スナップショットを返す。無ければ `404 { error:"no_snapshot" }`。
@@ -56,9 +58,10 @@ gapCount)、generatedAt 降順。トップのカード用。
 
 ### `GET /api/snapshots/:label`
 1 件の ReconcileResult に**行ごとのディープリンクを付与**して返す (無ければ 404)。
-- `domainMatches[].links = { praeforma:string|null, anatomia:string|null }`
-  (その側のドメインが存在し、かつ web URL 設定済のときのみ URL。無ければ null)
+- `domainMatches[].links` / `sceneMatches[].links = { praeforma:string|null, anatomia:string|null }`
+  (その側が存在し、かつ web URL 設定済のときのみ URL。無ければ null)
 - `specCoverage[].praeformaUrl = string|null` (該当 spec を開くリンク)
+- `diff` = history の直前 run と比較した前回比 (無ければ `hasPrevious:false`)
 
 リンク URL は `links/deeplink.ts` の純粋関数で生成。web URL 未設定なら null を返し、
 ビューアは無効表示にする (無言で誤ったホストへリンクしない)。

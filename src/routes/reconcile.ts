@@ -10,6 +10,7 @@ import type { SnapshotStore } from '../store/snapshot.ts';
 import { makePraeformaClient } from '../clients/praeforma.ts';
 import { makeAnatomiaClient } from '../clients/anatomia.ts';
 import { runReconcile } from '../reconcile/engine.ts';
+import { diffReconcile } from '../reconcile/diff.ts';
 import { VIEWER_HTML } from './viewer.ts';
 
 export function mountReconcileRoutes(app: Hono, config: ThaleiaConfig, store: SnapshotStore): void {
@@ -33,6 +34,8 @@ export function mountReconcileRoutes(app: Hono, config: ThaleiaConfig, store: Sn
     const pf = makePraeformaClient({ baseUrl: config.praeformaBaseUrl, token: config.praeformaToken });
     const an = makeAnatomiaClient({ baseUrl: config.anatomiaBaseUrl });
     try {
+      // 前回比のため、 上書き保存の前に直前の最新を読む。
+      const prev = await store.load(label);
       const result = await runReconcile(pf, an, {
         label,
         pfProjectId: pfProject,
@@ -40,7 +43,8 @@ export function mountReconcileRoutes(app: Hono, config: ThaleiaConfig, store: Sn
         now: new Date().toISOString(),
       });
       await store.save(result);
-      return c.json(result);
+      const diff = diffReconcile(prev, result);
+      return c.json({ ...result, diff });
     } catch (e) {
       return c.json({ error: 'upstream_failed', detail: String(e) }, 502);
     }
