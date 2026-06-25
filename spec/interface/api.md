@@ -19,6 +19,26 @@
 ### `GET /reconcile?project=<label>`
 保存済スナップショットを返す。無ければ `404 { error:"no_snapshot" }`。
 
+### `POST /relay/anatomia`
+Praeforma の要件定義モード (studio) が呼ぶ **MUSA リレー受け口**。Praeforma → Thaleia →
+Anatomia の一方向 (ここで Praeforma は呼ばない)。詳細は [feature/relay.md](../feature/relay.md)。
+```jsonc
+// request (Praeforma musa-relay.ts MusaAnatomiaRequest と同形)
+{ "project": "<Anatomia project id>",
+  "target": { "kind": "domain|layout", "id": "...", "name": "...", "description": "..." },
+  "requirements": [{ "code","title","description","priority","category","acceptance":["..."] }],
+  "query": "<検索文>", "repo": "<任意>" }
+// response 200
+{ "nodes": [{ "key","label","type":"symbol|file","anatomia_ref":{ "path","symbol","kind" } }],
+  "edges": [{ "from","to","relation":"calls|depends|implements|related" }],
+  "summary": "<何を根拠に何件返したか>" }
+```
+- `project` / `target.kind` 必須 (無ければ 400)
+- Anatomia 未設定: `503 { error:"anatomia_unconfigured", hint }` (Praeforma は不要)
+- 上流エラー (project 不在など): `502 { error:"upstream_failed", detail }`
+- 対象ドメインが Anatomia の検出ドメインに無い場合は **空 nodes/edges + 理由 summary**
+  (mock に落とさない)
+
 ### `GET /`
 突合専用ビューア (SPA、ビルド不要)。スナップショット一覧 → 突合マトリクス/仕様カバレッジ/
 ギャップ・ワークリストを表示し、各行から Praeforma(仕様編集)/Anatomia(実装閲覧)へ
@@ -56,6 +76,10 @@ gapCount)、generatedAt 降順。トップのカード用。
 ### Anatomia (`clients/anatomia.ts`、loopback 無認証)
 - `GET /api/domains?project=<id>` → `{ domains: string[] }`
   (実装関数を持つ検出ドメイン名のみ。存在 = implementorCount 1 とみなす)
+- `GET /api/graph?project=<id>` → `{ nodes:[{ id,name,kind,sourceRange.filePath }], edges:[{ from,to,kind }] }`
+  (関数粒度のコードグラフ全量。relay が部分グラフへ絞り込む)
+- `GET /api/projects/:id/domain-view` → `{ views:[{ domain, implementors:string[] }] }`
+  (検出ドメイン → 実装 AnchorId 群。relay の domain アンカーに使う)
 
 ## 注意
 
