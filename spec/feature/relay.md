@@ -36,6 +36,18 @@ Praeforma は Anatomia CLI を直叩きしない。連携は必ず Thaleia (MUSA
 | EdgeKind `implements`/`overrides` | relation `implements` |
 | EdgeKind `reads`/`writes`/他 | relation `related` |
 
+## LLM 意味ランキング (opt-in、`THALEIA_LLM_RANK=1`)
+
+構造選択は「ドメイン実装 + 検索語の字面一致」で要件との意味的近さを見ない。`THALEIA_LLM_RANK=1`
+のとき、構造候補 (≤300) を `claude -p` に渡し、`requirements`/`query`/対象名への関連が高い順に
+上位 `THALEIA_RANK_TOP_K`(既定 40) 件へ絞り込み + 並べ替える (`relay/rank.ts`、claude 呼び出しは
+`llm/claude.ts`)。エッジは残ったノード間のみ。summary に `N→M 件に絞り込み` を明示。
+
+- LLM が候補に無い key を返しても捨てる (創作 key を信じない)。重複・topK 超過も除去。
+- **既定は off** = 構造選択のみ。これは fallback ではなく文書化された既定モード。
+- 有効時に claude 不在/失敗 → `502 { error:"llm_unavailable"|"llm_failed"|.. }` (構造結果へ
+  黙って戻さない)。`THALEIA_CLAUDE_BIN` で Windows の git-bash wrapper を差せる。
+
 ## 無言フォールバック禁止
 
 - Anatomia 未設定 → `503 anatomia_unconfigured` (mock を返さない)。

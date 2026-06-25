@@ -51,6 +51,9 @@ AIFormat の分類フォルダに揃える (`data` / `feature` / `interface` / `
 | `ANATOMIA_BASE_URL` | (なし) | `anatomia web` の URL。未設定なら /reconcile は 503 |
 | `PRAEFORMA_WEB_URL` | (なし) | ビューアの Praeforma ディープリンク先。未設定ならリンク無効表示 |
 | `ANATOMIA_WEB_URL` | `ANATOMIA_BASE_URL` | ビューアの Anatomia ディープリンク先 (未設定なら API base 流用) |
+| `THALEIA_LLM_RANK` | (なし) | `1` で `/relay/anatomia` の LLM 意味ランキングを有効化 (既定 off=構造選択のみ) |
+| `THALEIA_CLAUDE_BIN` | `claude` | ランキング用 claude CLI (Windows は git-bash wrapper を差せる) |
+| `THALEIA_RANK_TOP_K` | `40` | ランキング後に残す上限件数 |
 
 ## 次フェーズ (v1 未了)
 
