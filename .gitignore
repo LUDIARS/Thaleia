@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+.env
+.env.*
+!.env.example
+# 突合スナップショットの実体は持ち出さない (data/ アンカーは保持)
+data/*.json
+!data/.gitkeep
+logs/

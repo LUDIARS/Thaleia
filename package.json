@@ -1,0 +1,23 @@
+{
+  "name": "thaleia",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MUSA Thaleia — 企画↔実装トレーサビリティ。Praeforma(人間の仕様) と Anatomia(コード解析) を突合する単独サービス。",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "hono": "^4.6.14"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
