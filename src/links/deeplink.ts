@@ -5,6 +5,16 @@
 //
 // ここは純粋関数。 web URL が未設定 (null) なら null を返し、 UI 側はリンクではなく素のテキストにする
 // (無言で誤ったホストへリンクしない = 無言フォールバック禁止)。
+//
+// ── 遷移先ルート (2026-06-26 実フロントで確認) ───────────────────────────────
+//   Praeforma: web/src/main.tsx の Routes より `/projects/:pid` (ProjectShowPage)。
+//     ProjectShowPage の表示切替は overview/domains/objects/layouts/specs の「内部 state」で、
+//     **現状 URL クエリを読まない**。 よって `?tab=&focus=` はページ着地までは効くが個別
+//     エンティティへのフォーカスは未消費 (将来 useSearchParams 化で focus が効く想定)。
+//     tab 名 (domains/specs/layouts) は実値に合わせてある。
+//   Anatomia: src/adapters/web/server.ts の `GET /` が管理パネル SPA を返す。 SPA も URL クエリを
+//     読まないが、 `?project=` は API 側の実パラメータ名なので合わせてある (+focus は将来用)。
+// パスとパラメータ名は実フロントに一致。 フロントが focus を消費するようになれば本ファイル不変で効く。
 
 export interface WebTargets {
   /** Praeforma フロントエンド URL。 未設定なら Praeforma へのリンクを出さない。 */
@@ -25,26 +35,48 @@ function trimSlash(u: string): string {
   return u.replace(/\/+$/, '');
 }
 
-/**
- * Praeforma のプロジェクトページを focus 付きで開く URL。
- * 注: 遷移先ルートは暫定 (`/projects/:id?focus=domain:<name>`)。 Praeforma フロントの確定ルートが
- * 決まったらここだけ直す (UI/呼び出し側は変更不要)。
- */
-export function praeformaDomainUrl(webUrl: string | null, pfProjectId: string, domain: string): string | null {
+/** Praeforma のプロジェクトページを tab + focus 付きで開く (ProjectShowPage、`/projects/:pid`)。 */
+function praeformaTabUrl(
+  webUrl: string | null,
+  pfProjectId: string,
+  tab: 'domains' | 'specs' | 'layouts',
+  focus: string,
+): string | null {
   if (!webUrl || !pfProjectId) return null;
-  return `${trimSlash(webUrl)}/projects/${encodeURIComponent(pfProjectId)}?focus=${encodeURIComponent(`domain:${domain}`)}`;
+  const q = `tab=${encodeURIComponent(tab)}&focus=${encodeURIComponent(focus)}`;
+  return `${trimSlash(webUrl)}/projects/${encodeURIComponent(pfProjectId)}?${q}`;
 }
 
-/** Praeforma の該当 spec を focus して開く URL。 */
-export function praeformaSpecUrl(webUrl: string | null, pfProjectId: string, specCode: string): string | null {
-  if (!webUrl || !pfProjectId) return null;
-  return `${trimSlash(webUrl)}/projects/${encodeURIComponent(pfProjectId)}?focus=${encodeURIComponent(`spec:${specCode}`)}`;
-}
-
-/** Anatomia web で該当ドメインの実装を見る URL。 */
-export function anatomiaDomainUrl(webUrl: string | null, anatomiaProject: string, domain: string): string | null {
+/** Anatomia 管理パネル (`/`) を project + focus 付きで開く。 */
+function anatomiaFocusUrl(webUrl: string | null, anatomiaProject: string, focus: string): string | null {
   if (!webUrl || !anatomiaProject) return null;
-  return `${trimSlash(webUrl)}/?project=${encodeURIComponent(anatomiaProject)}&domain=${encodeURIComponent(domain)}`;
+  const q = `project=${encodeURIComponent(anatomiaProject)}&focus=${encodeURIComponent(focus)}`;
+  return `${trimSlash(webUrl)}/?${q}`;
+}
+
+/** Praeforma の該当ドメイン (domains タブ) を開く URL。 */
+export function praeformaDomainUrl(webUrl: string | null, pfProjectId: string, domain: string): string | null {
+  return praeformaTabUrl(webUrl, pfProjectId, 'domains', domain);
+}
+
+/** Praeforma の該当 spec (specs タブ) を開く URL。 */
+export function praeformaSpecUrl(webUrl: string | null, pfProjectId: string, specCode: string): string | null {
+  return praeformaTabUrl(webUrl, pfProjectId, 'specs', specCode);
+}
+
+/** Praeforma のシーン(layout、layouts タブ) を開く URL。 */
+export function praeformaSceneUrl(webUrl: string | null, pfProjectId: string, scene: string): string | null {
+  return praeformaTabUrl(webUrl, pfProjectId, 'layouts', scene);
+}
+
+/** Anatomia 管理パネルで該当ドメインの実装を見る URL。 */
+export function anatomiaDomainUrl(webUrl: string | null, anatomiaProject: string, domain: string): string | null {
+  return anatomiaFocusUrl(webUrl, anatomiaProject, domain);
+}
+
+/** Anatomia 管理パネルで該当スクリーンを見る URL。 */
+export function anatomiaScreenUrl(webUrl: string | null, anatomiaProject: string, screen: string): string | null {
+  return anatomiaFocusUrl(webUrl, anatomiaProject, screen);
 }
 
 /** ドメイン突合行のリンク (存在する側だけ生成)。 */
@@ -60,18 +92,6 @@ export function domainRowLinks(
       ? anatomiaDomainUrl(targets.anatomiaWebUrl, anatomiaProject, row.anatomiaDomain)
       : null,
   };
-}
-
-/** Praeforma のシーン(layout)を focus して開く URL。 ルートは暫定 (`?focus=scene:<name>`)。 */
-export function praeformaSceneUrl(webUrl: string | null, pfProjectId: string, scene: string): string | null {
-  if (!webUrl || !pfProjectId) return null;
-  return `${trimSlash(webUrl)}/projects/${encodeURIComponent(pfProjectId)}?focus=${encodeURIComponent(`scene:${scene}`)}`;
-}
-
-/** Anatomia web で該当スクリーンを見る URL。 */
-export function anatomiaScreenUrl(webUrl: string | null, anatomiaProject: string, screen: string): string | null {
-  if (!webUrl || !anatomiaProject) return null;
-  return `${trimSlash(webUrl)}/?project=${encodeURIComponent(anatomiaProject)}&screen=${encodeURIComponent(screen)}`;
 }
 
 /** シーン突合行のリンク (存在する側だけ生成)。 */
