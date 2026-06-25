@@ -6,12 +6,15 @@
 
 import type { AnatomiaDomain, AnatomiaScreen } from '../reconcile/types.ts';
 import type { AnatomiaGraph } from '../relay/types.ts';
+import type { AnatomiaSpecLink } from '../trace/types.ts';
 
 export interface AnatomiaClient {
   /** 実装を持つ検出ドメインの一覧。 */
   listDomains(project: string): Promise<AnatomiaDomain[]>;
   /** 検出された UI スクリーン/シーンの一覧。 */
   listScreens(project: string): Promise<AnatomiaScreen[]>;
+  /** コード↔リポ spec 節リンク (関数粒度トレース用)。 */
+  listSpecLinks(project: string): Promise<AnatomiaSpecLink[]>;
   /** コードグラフ全量 (関数粒度のノード + calls/depends 等のエッジ)。 */
   fetchGraph(project: string): Promise<AnatomiaGraph>;
   /** 検出ドメイン名 → 実装 AnchorId 群 (domain-view より)。 */
@@ -46,6 +49,31 @@ export function makeAnatomiaClient(opts: AnatomiaClientOptions): AnatomiaClient 
       if (!res.ok) throw new Error(`anatomia /screens -> HTTP ${res.status}`);
       const data = (await res.json()) as { screens?: Array<{ name: string }> };
       return (data.screens ?? []).map((s) => ({ name: s.name }));
+    },
+
+    async listSpecLinks(project) {
+      // GET /api/projects/:id/spec-links → SpecLinkRow[] (from は anchor id もしくはファイルパス)。
+      const res = await fetch(
+        `${base}/api/projects/${encodeURIComponent(project)}/spec-links`,
+        { headers: { accept: 'application/json' } },
+      );
+      if (!res.ok) throw new Error(`anatomia /spec-links -> HTTP ${res.status}`);
+      const data = (await res.json()) as Array<{
+        from?: string;
+        fromName?: string;
+        clauseHeading?: string;
+        clauseFile?: string;
+        confidence?: number;
+        ratified?: boolean;
+      }>;
+      return (Array.isArray(data) ? data : []).map((l) => ({
+        from: l.from ?? '',
+        fromName: l.fromName ?? '',
+        clauseHeading: l.clauseHeading ?? '',
+        clauseFile: l.clauseFile ?? '',
+        confidence: typeof l.confidence === 'number' ? l.confidence : 0,
+        ratified: Boolean(l.ratified),
+      }));
     },
 
     async fetchGraph(project) {

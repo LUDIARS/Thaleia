@@ -9,6 +9,7 @@ import { loadConfig } from './config.ts';
 import { makeSnapshotStore } from './store/snapshot.ts';
 import { mountReconcileRoutes } from './routes/reconcile.ts';
 import { mountRelayRoutes } from './routes/relay.ts';
+import { mountTraceRoutes } from './routes/trace.ts';
 import { mountApiRoutes } from './routes/api.ts';
 
 const config = loadConfig();
@@ -30,6 +31,7 @@ app.get('/health', (c) =>
 
 mountReconcileRoutes(app, config, store);
 mountRelayRoutes(app, config);
+mountTraceRoutes(app, config);
 mountApiRoutes(app, config, store);
 
 serve({ fetch: app.fetch, port: config.port }, (info) => {

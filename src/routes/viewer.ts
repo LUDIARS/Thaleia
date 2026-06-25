@@ -73,6 +73,9 @@ export const VIEWER_HTML = `<!doctype html>
   padding:10px 14px;margin:12px 0;background:#fafbff;font-size:13px}
  .diffbox h3{font-size:13px}
  .diffbox b.yes{color:#0a7d33}.diffbox b.no{color:#c0392b}
+ .tracebox{border:1px solid var(--line);border-left:4px solid #0a7d33;border-radius:10px;
+  padding:10px 14px;margin:10px 0;background:#f6fbf7}
+ .tracebox code{font-size:12px;background:#eef;padding:1px 5px;border-radius:5px}
  .muted{color:var(--muted);font-size:12px}
  #form{display:none;margin-top:10px}
  #form.open{display:block}
@@ -153,10 +156,13 @@ async function openDetail(label){
 function render(r){
  const su=r.summary;
  // ドメイン突合行 (アクション = 存在する側へのディープリンク)。
+ window.__anProject=r.anatomiaProject||'';
  const dm=r.domainMatches.map(m=>{
   const acts=[];
   if(m.pfDomain)acts.push(lnk(m.links&&m.links.praeforma,'仕様を編集 ✎'));
   if(m.anatomiaDomain)acts.push(lnk(m.links&&m.links.anatomia,'実装を見る ↗'));
+  // 実装ありドメインは関数粒度トレースへ掘り下げ可能。
+  if(m.anatomiaDomain)acts.push('<button class="lnk traceBtn" data-an="'+esc(m.anatomiaDomain)+'">関数 ▾</button>');
   return '<tr><td>'+esc(m.pfDomain??'—')+'</td><td>'+esc(m.anatomiaDomain??'—')+'</td>'+
    '<td><span class="badge '+m.status+'">'+esc(STATUS_JA[m.status]||m.status)+'</span></td>'+
    '<td>'+acts.join('')+'</td></tr>';
@@ -203,6 +209,7 @@ function render(r){
    '<span class="badge code-only">仕様欠落</span>実装のみ</div>'+
   diffHtml+
   '<table><tr><th>Praeforma(仕様)</th><th>Anatomia(実装)</th><th>状態</th><th>アクション</th></tr>'+dm+'</table>'+
+  '<div id="traceOut"></div>'+
   (hasScenes?
    '<h2 style="margin-top:18px">シーン(layout)突合</h2>'+
    '<table><tr><th>Praeforma(シーン)</th><th>Anatomia(スクリーン)</th><th>状態</th><th>アクション</th></tr>'+sm+'</table>'
@@ -215,7 +222,30 @@ function render(r){
    '<div class="gapbox"><h3 class="code-only">仕様の無い実装ドメイン (Anatomia へ)</h3><ul>'+g2+'</ul></div>'+
    (hasScenes?'<div class="gapbox"><h3 class="code-only">仕様の無い実装スクリーン (Anatomia へ)</h3><ul>'+g3+'</ul></div>':'')+
   '</div>';
+ // 関数トレースのドリルダウン (実装ありドメインの「関数 ▾」)。
+ $('#detail').querySelectorAll('.traceBtn').forEach(b=>b.onclick=()=>openTrace(b.dataset.an));
  $('#detail').scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function openTrace(domain){
+ const out=$('#traceOut');if(!out)return;
+ out.innerHTML='<div class="muted" style="padding:8px">「'+esc(domain)+'」の実装関数を取得中…</div>';
+ try{
+  const res=await fetch('/api/trace?project='+encodeURIComponent(window.__anProject||'')+'&domain='+encodeURIComponent(domain));
+  const r=await res.json();
+  if(!res.ok){out.innerHTML='<div class="no" style="padding:8px">トレース失敗: '+esc(r.error||'')+' '+esc(r.hint||r.detail||'')+'</div>';return}
+  if(!r.matched){out.innerHTML='<div class="muted" style="padding:8px">「'+esc(domain)+'」は Anatomia の検出ドメインに無し。</div>';return}
+  const su=r.summary||{};
+  const rows=(r.functions||[]).map(f=>{
+   const links=(f.specLinks||[]).map(l=>'<span class="pill '+(l.ratified?'ok':'gap')+'" title="'+esc(l.clauseFile)+' ('+esc(l.confidence)+')">'+esc(l.clauseHeading)+'</span>').join(' ')||'<span class="muted">spec リンクなし</span>';
+   return '<tr><td><code>'+esc(f.name)+'</code></td><td class="muted">'+esc(f.path)+'</td><td>'+links+'</td></tr>';
+  }).join('');
+  out.innerHTML='<div class="tracebox"><h3 style="margin:0 0 6px">関数トレース: '+esc(domain)+
+   ' <span class="muted" style="font-weight:400">('+esc(su.functionCount)+' 関数 / spec リンクあり '+esc(su.linkedFunctions)+
+   (su.truncated?' / 上限切り詰め 全'+esc(su.totalImplementors):'')+')</span></h3>'+
+   '<table><tr><th>関数</th><th>ファイル</th><th>spec 節リンク</th></tr>'+rows+'</table>'+
+   '<div style="margin-top:6px"><button class="lnk" id="traceClose">閉じる</button></div></div>';
+  $('#traceClose').onclick=()=>{out.innerHTML=''};
+ }catch(e){out.innerHTML='<div class="no" style="padding:8px">'+esc(e)+'</div>'}
 }
 function c(t,v){return '<div class="c"><span>'+esc(t)+'</span><b>'+esc(v)+'</b></div>'}
 // 前回比のレンダ。 hasPrevious=false (初回) は何も出さない。

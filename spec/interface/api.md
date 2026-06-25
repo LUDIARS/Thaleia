@@ -41,10 +41,24 @@ Anatomia の一方向 (ここで Praeforma は呼ばない)。詳細は [feature
 - 対象ドメインが Anatomia の検出ドメインに無い場合は **空 nodes/edges + 理由 summary**
   (mock に落とさない)
 
+### `GET /api/trace?project=<id>&domain=<name>&max=<n>`
+対象ドメインの**関数粒度トレース** (実装関数 + 各関数の spec-links)。詳細は
+[feature/trace.md](../feature/trace.md)。
+```jsonc
+// response 200 = TraceResult
+{ "domain": "...", "matched": true,
+  "functions": [{ "id","name","path","specLinks":[{ "clauseHeading","clauseFile","confidence","ratified" }] }],
+  "summary": { "functionCount","linkedFunctions","truncated","totalImplementors" } }
+```
+- `project` / `domain` 必須 (無ければ 400)、Anatomia 未設定 503、上流エラー 502
+- 対象ドメインが Anatomia に無ければ `matched:false` + `functions:[]` (mock を返さない)
+- 関数は `MAX_TRACE_FUNCTIONS`(200) で切り詰め (超過は `truncated:true` + `totalImplementors`)
+
 ### `GET /`
 突合専用ビューア (SPA、ビルド不要)。スナップショット一覧 → 突合マトリクス/仕様カバレッジ/
 ギャップ・ワークリストを表示し、各行から Praeforma(仕様編集)/Anatomia(実装閲覧)へ
-ディープリンクで送り出す。下記 `/api/*` を読む。
+ディープリンクで送り出す。実装ありドメイン行の「関数 ▾」で `/api/trace` を引いて関数粒度を
+展開する。下記 `/api/*` を読む。
 
 ## 閲覧用 API (`routes/api.ts`、読み取り専用)
 
@@ -88,6 +102,8 @@ gapCount)、generatedAt 降順。トップのカード用。
 - `GET /api/domains?project=<id>` → `{ domains: string[] }`
   (実装関数を持つ検出ドメイン名のみ。存在 = implementorCount 1 とみなす)
 - `GET /api/projects/:id/screens` → `{ screens:[{ name, ... }] }` (検出 UI スクリーン=シーン。存在=実装あり)
+- `GET /api/projects/:id/spec-links` → `SpecLinkRow[]` (`{ from, fromName, clauseHeading, clauseFile, confidence, ratified }`)
+  (コード↔リポ spec 節リンク。`from` は関数 anchor id もしくはファイルパス。trace が関数へ join)
 - `GET /api/graph?project=<id>` → `{ nodes:[{ id,name,kind,sourceRange.filePath }], edges:[{ from,to,kind }] }`
   (関数粒度のコードグラフ全量。relay が部分グラフへ絞り込む)
 - `GET /api/projects/:id/domain-view` → `{ views:[{ domain, implementors:string[] }] }`
