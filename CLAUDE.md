@@ -58,6 +58,8 @@ AIFormat の分類フォルダに揃える (`data` / `feature` / `interface` / `
 ## 次フェーズ (v1 未了)
 
 - Anatomia spec-links / graph を使った行レベルのトレーサビリティ。
-- scene(layout) target の突合 (v1 は domain target のみ)。
 - 意味照合 (名寄せだけでなく embedding で近い概念を対応付け)。
-- PROJECT-CODES に `Th` 追記 (別 PR、LUDIARS/LUDIARS)。
+- 実環境フル E2E は通済 (studio anatomia-link / scene reconcile を実 Pf+An で確認)。
+
+完了済: scene(layout) target 突合 (domain と同じ二部マッチで layout↔screen) /
+MUSA リレー `/relay/anatomia` + LLM 意味ランキング / PROJECT-CODES `Th` 追記。

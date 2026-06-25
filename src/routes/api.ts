@@ -10,7 +10,7 @@
 import type { Hono } from 'hono';
 import type { ThaleiaConfig } from '../config.ts';
 import type { SnapshotStore } from '../store/snapshot.ts';
-import { domainRowLinks, praeformaSpecUrl } from '../links/deeplink.ts';
+import { domainRowLinks, sceneRowLinks, praeformaSpecUrl } from '../links/deeplink.ts';
 
 export function mountApiRoutes(app: Hono, config: ThaleiaConfig, store: SnapshotStore): void {
   const targets = {
@@ -38,12 +38,18 @@ export function mountApiRoutes(app: Hono, config: ThaleiaConfig, store: Snapshot
       links: domainRowLinks(targets, snap.pfProjectId, snap.anatomiaProject, m),
     }));
 
+    // 各シーン行にも同様のリンクを付与 (旧スナップショットは sceneMatches 無し → [])。
+    const sceneMatches = (snap.sceneMatches ?? []).map((m) => ({
+      ...m,
+      links: sceneRowLinks(targets, snap.pfProjectId, snap.anatomiaProject, m),
+    }));
+
     // 仕様行に「Praeforma で該当 spec を開く」リンクを付与。
     const specCoverage = snap.specCoverage.map((s) => ({
       ...s,
       praeformaUrl: praeformaSpecUrl(config.praeformaWebUrl, snap.pfProjectId, s.specCode),
     }));
 
-    return c.json({ ...snap, domainMatches, specCoverage });
+    return c.json({ ...snap, domainMatches, sceneMatches, specCoverage });
   });
 }

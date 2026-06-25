@@ -61,3 +61,30 @@ export function domainRowLinks(
       : null,
   };
 }
+
+/** Praeforma のシーン(layout)を focus して開く URL。 ルートは暫定 (`?focus=scene:<name>`)。 */
+export function praeformaSceneUrl(webUrl: string | null, pfProjectId: string, scene: string): string | null {
+  if (!webUrl || !pfProjectId) return null;
+  return `${trimSlash(webUrl)}/projects/${encodeURIComponent(pfProjectId)}?focus=${encodeURIComponent(`scene:${scene}`)}`;
+}
+
+/** Anatomia web で該当スクリーンを見る URL。 */
+export function anatomiaScreenUrl(webUrl: string | null, anatomiaProject: string, screen: string): string | null {
+  if (!webUrl || !anatomiaProject) return null;
+  return `${trimSlash(webUrl)}/?project=${encodeURIComponent(anatomiaProject)}&screen=${encodeURIComponent(screen)}`;
+}
+
+/** シーン突合行のリンク (存在する側だけ生成)。 */
+export function sceneRowLinks(
+  targets: WebTargets,
+  pfProjectId: string,
+  anatomiaProject: string,
+  row: { pfScene: string | null; anatomiaScreen: string | null },
+): DomainRowLinks {
+  return {
+    praeforma: row.pfScene ? praeformaSceneUrl(targets.praeformaWebUrl, pfProjectId, row.pfScene) : null,
+    anatomia: row.anatomiaScreen
+      ? anatomiaScreenUrl(targets.anatomiaWebUrl, anatomiaProject, row.anatomiaScreen)
+      : null,
+  };
+}
