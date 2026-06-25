@@ -17,18 +17,32 @@ MUSA「9 人の女神」の **タレイア** — 企画↔実装トレーサビ�
 - **両方向ギャップ**: 実装の無い仕様 (未実装) / 仕様の無い実装ドメイン (仕様欠落)。
 
 結果は `data/<label>.json` に保存し、`GET /reconcile?project=<label>` で引ける。
-`GET /` に最小ビューア。
+
+## 突合ビューア (`GET /`)
+
+Thaleia の UI は「突合差分」そのものが中身で、仕様編集も解析も持たない (= 役割の二重実装を
+しない)。スナップショット一覧 → 突合マトリクス / 仕様カバレッジ / ギャップ・ワークリストを
+表示し、各行から各サービスへ**ディープリンク**で送り出す:
+
+- **実装欠落 (spec-only)** → Praeforma で仕様を開く
+- **仕様欠落 (code-only)** → Anatomia で実装を見る
+- **表記ゆれ / 一致** → 両側へ
+
+リンク先は `PRAEFORMA_WEB_URL` / `ANATOMIA_WEB_URL`。未設定なら誤ったホストへ飛ばさず
+無効表示にする。SPA はビルド不要で `routes/api.ts` の `/api/*` (config / snapshots /
+snapshots/:label) を読む。
 
 ## 構成
 
 ```
 src/
 ├── index.ts            Hono server entry (port 8890)
-├── config.ts           env (PRAEFORMA_BASE_URL/TOKEN, ANATOMIA_BASE_URL)
+├── config.ts           env (PRAEFORMA_/ANATOMIA_ BASE_URL/TOKEN/WEB_URL)
 ├── clients/            上流クライアント (praeforma / anatomia)
 ├── reconcile/          突合: types / match(純粋) / engine(I/O)
-├── routes/             /reconcile + 最小ビューア
-└── store/              data/*.json スナップショット
+├── links/              deeplink(純粋): 行→各サービスへの URL 生成
+├── routes/             /reconcile + /api/* + 突合ビューア
+└── store/              data/*.json スナップショット (save/load/list)
 ```
 
 ## 起動
