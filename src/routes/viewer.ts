@@ -1,57 +1,212 @@
-// 最小 HTML ビューア。 突合を実行して結果を表で見るだけの素朴な SPA (ビルド不要)。
+// 突合専用ビューア (ビルド不要の素朴な SPA)。
+//
+// Thaleia の UI は「突合差分」を中身にし、 編集/解析は持たない。 ギャップを見つけたら
+//   - 実装欠落 (spec-only) → Praeforma で仕様を開く
+//   - 仕様欠落 (code-only) → Anatomia で実装を見る
+// へディープリンクで送り出す (= ハブ性はナビゲーションとして持つ)。
+//
+// データ源:
+//   GET /api/config            設定有無 (リンク先/突合可否)
+//   GET /api/snapshots         保存済み突合の一覧 (カード)
+//   GET /api/snapshots/:label  1 件 (行ごとのディープリンク付き)
+//   POST /reconcile            新規突合
 
 export const VIEWER_HTML = `<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><title>Thaleia — 突合</title>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thaleia — 企画↔実装 突合</title>
 <style>
- body{font-family:system-ui,"Yu Gothic UI",sans-serif;max-width:980px;margin:24px auto;padding:0 16px;color:#1d2230}
- h1{font-size:18px} .muted{color:#6b7280;font-size:12px}
- form{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
- input{padding:8px 10px;border:1px solid #e3e5ea;border-radius:8px}
- button{padding:8px 16px;border:1px solid #2a6df4;background:#2a6df4;color:#fff;border-radius:8px;cursor:pointer}
- table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px}
- th,td{border:1px solid #e3e5ea;padding:6px 8px;text-align:left}
- th{background:#f6f7f9}
- .matched{color:#1f8a4c}.name-mismatch{color:#b8860b}.spec-only{color:#c0392b}.code-only{color:#8e44ad}
- .yes{color:#1f8a4c;font-weight:600}.no{color:#c0392b;font-weight:600}
- .cards{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
- .card{border:1px solid #e3e5ea;border-radius:8px;padding:8px 12px;min-width:120px}
- .card b{font-size:20px;display:block}
+ :root{--fg:#1d2230;--muted:#6b7280;--line:#e3e5ea;--bg:#f6f7f9;--brand:#2a6df4;
+  --matched:#1f8a4c;--mismatch:#b8860b;--specOnly:#c0392b;--codeOnly:#8e44ad}
+ *{box-sizing:border-box}
+ body{font-family:system-ui,"Yu Gothic UI",sans-serif;margin:0;color:var(--fg);background:#fbfcfe;line-height:1.5}
+ header{padding:18px 20px;border-bottom:1px solid var(--line);background:#fff}
+ h1{font-size:18px;margin:0}
+ .sub{color:var(--muted);font-size:12px;margin-top:4px}
+ main{max-width:1080px;margin:0 auto;padding:18px 20px}
+ .notice{font-size:12px;color:var(--muted);background:var(--bg);border:1px solid var(--line);
+  border-radius:10px;padding:8px 12px;margin:0 0 14px}
+ .notice.warn{color:#92400e;background:#fff7ed;border-color:#fed7aa}
+ section{margin:18px 0}
+ h2{font-size:14px;margin:0 0 10px;color:var(--fg)}
+ .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+ /* Foundation 風入力: 角丸 + やや大きめ padding */
+ input{padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;min-width:180px}
+ button{padding:10px 16px;border:1px solid var(--brand);background:var(--brand);color:#fff;
+  border-radius:10px;cursor:pointer;font-size:13px}
+ button.ghost{background:#fff;color:var(--brand)}
+ .cards{display:flex;gap:10px;flex-wrap:wrap}
+ .snap{border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:200px;cursor:pointer;background:#fff}
+ .snap:hover{border-color:var(--brand)}
+ .snap b{font-size:14px;display:block}
+ .snap .meta{color:var(--muted);font-size:11px;margin-top:4px}
+ .pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;margin-right:4px}
+ .pill.gap{background:#fef2f2;color:var(--specOnly)}
+ .pill.ok{background:#ecfdf5;color:var(--matched)}
+ .stat{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px}
+ .stat .c{border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:96px;background:#fff}
+ .stat .c span{color:var(--muted);font-size:11px}
+ .stat .c b{font-size:20px;display:block}
+ table{border-collapse:collapse;width:100%;font-size:13px;background:#fff}
+ th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+ th{background:var(--bg);font-weight:600}
+ .badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+ .matched{color:var(--matched);background:#ecfdf5}
+ .name-mismatch{color:var(--mismatch);background:#fffbeb}
+ .spec-only{color:var(--specOnly);background:#fef2f2}
+ .code-only{color:var(--codeOnly);background:#f5f3ff}
+ .legend{font-size:11px;color:var(--muted);margin:4px 0 8px}
+ .legend .badge{margin-right:6px}
+ .yes{color:var(--matched);font-weight:600}.no{color:var(--specOnly);font-weight:600}
+ .lnk{display:inline-block;font-size:11px;padding:3px 9px;border:1px solid var(--brand);color:var(--brand);
+  border-radius:8px;text-decoration:none;margin:1px 4px 1px 0;white-space:nowrap}
+ .lnk:hover{background:var(--brand);color:#fff}
+ .lnk-off{display:inline-block;font-size:11px;padding:3px 9px;border:1px dashed var(--line);color:var(--muted);
+  border-radius:8px;margin:1px 4px 1px 0;white-space:nowrap}
+ .gaps{display:flex;gap:14px;flex-wrap:wrap}
+ .gapbox{flex:1;min-width:280px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff}
+ .gapbox h3{font-size:13px;margin:0 0 8px}
+ .gapbox ul{margin:0;padding-left:0;list-style:none}
+ .gapbox li{padding:5px 0;border-bottom:1px dashed var(--line);font-size:13px}
+ .gapbox li:last-child{border-bottom:none}
+ .empty{color:var(--muted);font-size:12px}
+ .muted{color:var(--muted);font-size:12px}
+ #form{display:none;margin-top:10px}
+ #form.open{display:block}
 </style></head><body>
-<h1>Thaleia — ドメイン↔仕様書 突合</h1>
-<p class="muted">Praeforma(人間の仕様) と Anatomia(コード解析) を突合します。</p>
-<form id="f">
- <input id="label" placeholder="表示名 (例: kuzu-survivors)" required>
- <input id="pf" placeholder="Praeforma project id" required>
- <input id="an" placeholder="Anatomia project id (省略可)">
- <button>突合する</button>
-</form>
-<div id="out"></div>
+<header>
+ <h1>Thaleia — 企画↔実装 トレーサビリティ</h1>
+ <div class="sub">Praeforma(人間の仕様) と Anatomia(コード解析) を突合し、 ギャップを各サービスへ送り出します。</div>
+</header>
+<main>
+ <div id="notice"></div>
+
+ <section>
+  <div class="row" style="justify-content:space-between">
+   <h2 style="margin:0">突合スナップショット</h2>
+   <button class="ghost" id="toggleForm">＋ 新規突合</button>
+  </div>
+  <form id="form">
+   <div class="row">
+    <input id="label" placeholder="表示名 (例: kuzu-survivors)" required>
+    <input id="pf" placeholder="Praeforma project id" required>
+    <input id="an" placeholder="Anatomia project id (省略可)">
+    <button id="runBtn">突合する</button>
+   </div>
+   <div class="muted" id="formMsg" style="margin-top:6px"></div>
+  </form>
+  <div id="list" class="cards" style="margin-top:12px"></div>
+ </section>
+
+ <section id="detail" style="display:none"></section>
+</main>
 <script>
 const $=s=>document.querySelector(s);
-function esc(s){return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
-function render(r){
- const dm=r.domainMatches.map(m=>'<tr><td>'+esc(m.pfDomain)+'</td><td>'+esc(m.anatomiaDomain)+'</td><td class="'+m.status+'">'+m.status+'</td></tr>').join('');
- const sc=r.specCoverage.map(s=>'<tr><td>'+esc(s.specCode)+'</td><td>'+esc(s.specTitle)+'</td><td>'+esc(s.targetDomains.join(', '))+'</td><td class="'+(s.implemented?'yes':'no')+'">'+(s.implemented?'実装あり':'未実装')+'</td><td class="muted">'+esc(s.evidence)+'</td></tr>').join('');
- const su=r.summary;
- $('#out').innerHTML=
-  '<p class="muted">generatedAt: '+esc(r.generatedAt)+'</p>'+
-  '<div class="cards">'+
-   card('Pfドメイン',su.pfDomains)+card('実装ドメイン',su.anatomiaDomains)+card('一致',su.matchedDomains)+
-   card('仕様',su.specs)+card('実装済仕様',su.implementedSpecs)+'</div>'+
-  '<h3>ドメイン突合</h3><table><tr><th>Praeforma(仕様)</th><th>Anatomia(実装)</th><th>状態</th></tr>'+dm+'</table>'+
-  '<h3>仕様カバレッジ</h3><table><tr><th>code</th><th>title</th><th>target</th><th>実装</th><th>根拠</th></tr>'+sc+'</table>'+
-  '<h3>ギャップ</h3><p class="no">未実装の仕様: '+esc(r.gaps.specsWithoutImpl.join(', ')||'なし')+'</p>'+
-  '<p class="code-only">仕様の無い実装ドメイン: '+esc(r.gaps.codeDomainsWithoutSpec.join(', ')||'なし')+'</p>';
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+const STATUS_JA={matched:'一致','name-mismatch':'表記ゆれ','spec-only':'実装欠落','code-only':'仕様欠落'};
+let CFG={praeformaWeb:false,anatomiaWeb:false,reconcileReady:false};
+
+function lnk(url,label){
+ if(url)return '<a class="lnk" href="'+esc(url)+'" target="_blank" rel="noopener">'+esc(label)+'</a>';
+ return '<span class="lnk-off" title="リンク先 web URL が未設定">'+esc(label)+'</span>';
 }
-function card(t,v){return '<div class="card">'+esc(t)+'<b>'+esc(v)+'</b></div>'}
-$('#f').onsubmit=async e=>{
- e.preventDefault();$('#out').textContent='突合中…';
+
+async function loadConfig(){
+ try{CFG=await (await fetch('/api/config')).json()}catch{/* デフォルトのまま */}
+ const n=[];
+ if(!CFG.reconcileReady)n.push('<div class="notice warn">上流未設定: PRAEFORMA_BASE_URL / ANATOMIA_BASE_URL を設定すると突合できます。</div>');
+ if(!CFG.praeformaWeb||!CFG.anatomiaWeb){
+  const miss=[!CFG.praeformaWeb&&'PRAEFORMA_WEB_URL',!CFG.anatomiaWeb&&'ANATOMIA_WEB_URL'].filter(Boolean).join(' / ');
+  n.push('<div class="notice">'+esc(miss)+' 未設定のため、 該当サービスへのディープリンクは無効表示になります。</div>');
+ }
+ $('#notice').innerHTML=n.join('');
+}
+
+async function loadList(){
+ const j=await (await fetch('/api/snapshots')).json();
+ const items=j.items||[];
+ if(!items.length){$('#list').innerHTML='<div class="empty">まだ突合がありません。「＋ 新規突合」から実行してください。</div>';return}
+ $('#list').innerHTML=items.map(s=>{
+  const su=s.summary||{};
+  const gap=s.gapCount||0;
+  return '<div class="snap" data-label="'+esc(s.project)+'">'+
+   '<b>'+esc(s.project)+'</b>'+
+   '<div style="margin-top:6px">'+
+    (gap>0?'<span class="pill gap">ギャップ '+gap+'</span>':'<span class="pill ok">ギャップなし</span>')+
+    '<span class="pill ok">一致 '+esc(su.matchedDomains)+'/'+esc(su.pfDomains)+'</span>'+
+   '</div>'+
+   '<div class="meta">仕様 '+esc(su.implementedSpecs)+'/'+esc(su.specs)+' 実装済 ・ '+esc((s.generatedAt||'').replace('T',' ').slice(0,16))+'</div>'+
+  '</div>';
+ }).join('');
+ document.querySelectorAll('.snap').forEach(el=>el.onclick=()=>openDetail(el.dataset.label));
+}
+
+async function openDetail(label){
+ const res=await fetch('/api/snapshots/'+encodeURIComponent(label));
+ if(!res.ok){$('#detail').style.display='block';$('#detail').innerHTML='<p class="no">読み込み失敗: '+esc(label)+'</p>';return}
+ render(await res.json());
+}
+
+function render(r){
+ const su=r.summary;
+ // ドメイン突合行 (アクション = 存在する側へのディープリンク)。
+ const dm=r.domainMatches.map(m=>{
+  const acts=[];
+  if(m.pfDomain)acts.push(lnk(m.links&&m.links.praeforma,'仕様を編集 ✎'));
+  if(m.anatomiaDomain)acts.push(lnk(m.links&&m.links.anatomia,'実装を見る ↗'));
+  return '<tr><td>'+esc(m.pfDomain??'—')+'</td><td>'+esc(m.anatomiaDomain??'—')+'</td>'+
+   '<td><span class="badge '+m.status+'">'+esc(STATUS_JA[m.status]||m.status)+'</span></td>'+
+   '<td>'+acts.join('')+'</td></tr>';
+ }).join('');
+ // 仕様カバレッジ。
+ const sc=r.specCoverage.map(s=>
+  '<tr><td>'+esc(s.specCode)+'</td><td>'+esc(s.specTitle)+'</td><td>'+esc((s.targetDomains||[]).join(', ')||'—')+'</td>'+
+  '<td class="'+(s.implemented?'yes':'no')+'">'+(s.implemented?'実装あり':'未実装')+'</td>'+
+  '<td class="muted">'+esc(s.evidence)+'</td>'+
+  '<td>'+lnk(s.praeformaUrl,'仕様を開く ✎')+'</td></tr>').join('');
+ // ギャップ・ワークリスト (リンクは詳細行から引く)。
+ const specUrl={};r.specCoverage.forEach(s=>{specUrl[s.specCode]=s.praeformaUrl});
+ const codeUrl={};r.domainMatches.forEach(m=>{if(m.status==='code-only')codeUrl[m.anatomiaDomain]=m.links&&m.links.anatomia});
+ const g1=(r.gaps.specsWithoutImpl||[]).map(c=>'<li>'+esc(c)+' '+lnk(specUrl[c],'仕様へ ✎')+'</li>').join('')||'<li class="empty">なし</li>';
+ const g2=(r.gaps.codeDomainsWithoutSpec||[]).map(n=>'<li>'+esc(n)+' '+lnk(codeUrl[n],'実装へ ↗')+'</li>').join('')||'<li class="empty">なし</li>';
+
+ $('#detail').style.display='block';
+ $('#detail').innerHTML=
+  '<h2>'+esc(r.project)+' <span class="muted" style="font-weight:400">('+esc((r.generatedAt||'').replace('T',' ').slice(0,16))+')</span></h2>'+
+  '<div class="stat">'+
+   c('Pfドメイン',su.pfDomains)+c('実装ドメイン',su.anatomiaDomains)+c('一致',su.matchedDomains)+
+   c('仕様',su.specs)+c('実装済仕様',su.implementedSpecs)+'</div>'+
+  '<div class="legend">'+
+   '<span class="badge matched">一致</span>表記そのまま '+
+   '<span class="badge name-mismatch">表記ゆれ</span>正規化で一致 '+
+   '<span class="badge spec-only">実装欠落</span>仕様のみ '+
+   '<span class="badge code-only">仕様欠落</span>実装のみ</div>'+
+  '<table><tr><th>Praeforma(仕様)</th><th>Anatomia(実装)</th><th>状態</th><th>アクション</th></tr>'+dm+'</table>'+
+  '<h2 style="margin-top:18px">仕様カバレッジ</h2>'+
+  '<table><tr><th>code</th><th>title</th><th>target</th><th>実装</th><th>根拠</th><th>アクション</th></tr>'+sc+'</table>'+
+  '<h2 style="margin-top:18px">ギャップ・ワークリスト</h2>'+
+  '<div class="gaps">'+
+   '<div class="gapbox"><h3 class="no">未実装の仕様 (Praeforma へ)</h3><ul>'+g1+'</ul></div>'+
+   '<div class="gapbox"><h3 class="code-only">仕様の無い実装ドメイン (Anatomia へ)</h3><ul>'+g2+'</ul></div>'+
+  '</div>';
+ $('#detail').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function c(t,v){return '<div class="c"><span>'+esc(t)+'</span><b>'+esc(v)+'</b></div>'}
+
+$('#toggleForm').onclick=()=>$('#form').classList.toggle('open');
+$('#form').onsubmit=async e=>{
+ e.preventDefault();
+ const msg=$('#formMsg');msg.textContent='突合中…';
  try{
   const res=await fetch('/reconcile',{method:'POST',headers:{'content-type':'application/json'},
    body:JSON.stringify({label:$('#label').value,pf_project:$('#pf').value,anatomia_project:$('#an').value||undefined})});
   const j=await res.json();
-  if(!res.ok){$('#out').innerHTML='<p class="no">エラー: '+esc(j.error)+' '+esc(j.hint||j.detail||'')+'</p>';return}
-  render(j);
- }catch(err){$('#out').innerHTML='<p class="no">'+esc(err)+'</p>'}
+  if(!res.ok){msg.innerHTML='<span class="no">エラー: '+esc(j.error)+' '+esc(j.hint||j.detail||'')+'</span>';return}
+  msg.textContent='完了';
+  await loadList();
+  // POST 応答はリンク未付与なので、 enrich 済みの詳細を引き直す。
+  await openDetail(j.project);
+ }catch(err){msg.innerHTML='<span class="no">'+esc(err)+'</span>'}
 };
+
+(async()=>{await loadConfig();await loadList()})();
 </script></body></html>`;

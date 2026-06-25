@@ -49,6 +49,8 @@ AIFormat の分類フォルダに揃える (`data` / `feature` / `interface` / `
 | `PRAEFORMA_BASE_URL` | (なし) | Praeforma API。未設定なら /reconcile は 503 |
 | `PRAEFORMA_TOKEN` | (なし) | Praeforma 用 Cernere service token |
 | `ANATOMIA_BASE_URL` | (なし) | `anatomia web` の URL。未設定なら /reconcile は 503 |
+| `PRAEFORMA_WEB_URL` | (なし) | ビューアの Praeforma ディープリンク先。未設定ならリンク無効表示 |
+| `ANATOMIA_WEB_URL` | `ANATOMIA_BASE_URL` | ビューアの Anatomia ディープリンク先 (未設定なら API base 流用) |
 
 ## 次フェーズ (v1 未了)
 

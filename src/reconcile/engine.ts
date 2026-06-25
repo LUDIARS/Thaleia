@@ -46,6 +46,13 @@ export async function runReconcile(
 
   const anatomiaDomains = await an.listDomains(params.anatomiaProject);
 
-  const result = reconcile({ project: params.label, pfDomains, pfSpecs, anatomiaDomains });
+  const result = reconcile({
+    project: params.label,
+    pfProjectId: params.pfProjectId,
+    anatomiaProject: params.anatomiaProject,
+    pfDomains,
+    pfSpecs,
+    anatomiaDomains,
+  });
   return { ...result, generatedAt: params.now };
 }
