@@ -16,6 +16,10 @@ export function normalizeName(s: string): string {
 
 export interface ReconcileInput {
   project: string;
+  /** Praeforma project id (ディープリンク用。 純粋テストでは省略可)。 */
+  pfProjectId?: string;
+  /** Anatomia project id (ディープリンク用。 純粋テストでは省略可)。 */
+  anatomiaProject?: string;
   pfDomains: PfDomain[];
   pfSpecs: PfSpec[];
   anatomiaDomains: AnatomiaDomain[];
@@ -97,6 +101,8 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
 
   return {
     project,
+    pfProjectId: input.pfProjectId ?? '',
+    anatomiaProject: input.anatomiaProject ?? '',
     generatedAt: null,
     domainMatches,
     specCoverage,

@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path';
 import { loadConfig } from './config.ts';
 import { makeSnapshotStore } from './store/snapshot.ts';
 import { mountReconcileRoutes } from './routes/reconcile.ts';
+import { mountApiRoutes } from './routes/api.ts';
 
 const config = loadConfig();
 const dataDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'data');
@@ -27,6 +28,7 @@ app.get('/health', (c) =>
 );
 
 mountReconcileRoutes(app, config, store);
+mountApiRoutes(app, config, store);
 
 serve({ fetch: app.fetch, port: config.port }, (info) => {
   console.log(`[thaleia] listening on http://localhost:${info.port}`);

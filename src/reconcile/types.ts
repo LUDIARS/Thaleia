@@ -55,6 +55,10 @@ export interface SpecCoverage {
 /** 突合結果。 */
 export interface ReconcileResult {
   project: string;
+  /** Praeforma の project id (ディープリンク生成に使う。 純粋層では空文字)。 */
+  pfProjectId: string;
+  /** Anatomia の project id (ディープリンク生成に使う。 純粋層では空文字)。 */
+  anatomiaProject: string;
   /** ISO 文字列。 純粋層では null、 engine が打刻する。 */
   generatedAt: string | null;
   domainMatches: DomainMatch[];
