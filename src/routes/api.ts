@@ -11,6 +11,7 @@ import type { Hono } from 'hono';
 import type { ThaleiaConfig } from '../config.ts';
 import type { SnapshotStore } from '../store/snapshot.ts';
 import { domainRowLinks, sceneRowLinks, praeformaSpecUrl } from '../links/deeplink.ts';
+import { diffReconcile } from '../reconcile/diff.ts';
 
 export function mountApiRoutes(app: Hono, config: ThaleiaConfig, store: SnapshotStore): void {
   const targets = {
@@ -50,6 +51,10 @@ export function mountApiRoutes(app: Hono, config: ThaleiaConfig, store: Snapshot
       praeformaUrl: praeformaSpecUrl(config.praeformaWebUrl, snap.pfProjectId, s.specCode),
     }));
 
-    return c.json({ ...snap, domainMatches, sceneMatches, specCoverage });
+    // 前回比 (history に直前の run があれば)。
+    const prev = await store.loadPrevious(c.req.param('label'));
+    const diff = diffReconcile(prev, snap);
+
+    return c.json({ ...snap, domainMatches, sceneMatches, specCoverage, diff });
   });
 }

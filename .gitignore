@@ -6,5 +6,6 @@ dist/
 !.env.example
 # 突合スナップショットの実体は持ち出さない (data/ アンカーは保持)
 data/*.json
+data/history/
 !data/.gitkeep
 logs/
