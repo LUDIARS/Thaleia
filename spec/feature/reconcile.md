@@ -52,6 +52,22 @@
 specs, implementedSpecs }`。`anatomiaDomains`/`anatomiaScreens` は正規化重複を畳んだ後の数
 (同名は implementorCount 最大を採用)。
 
+## 突合履歴の差分 (`src/reconcile/diff.ts`)
+
+トレーサビリティは「いま」だけでなく「前回からどう変わったか」が価値。`diffReconcile(prev, curr)`
+は純粋関数で前回比を出す:
+
+- `domains` / `scenes`: `added` / `removed` / `statusChanged`(`{name, from, to}`)。
+  キーは Pf 名 (無ければ Anatomia 名)。 例: spec-only→matched (実装が付いた)、code-only→matched。
+- `specs`: `nowImplemented`(前進) / `regressed`(実装→未実装、 要注意) / `added` / `removed`。
+- `summaryDelta`: summary 各カウントの増減 (0 のキーは含めない)。
+- 初回 (`prev=null`) は `hasPrevious=false` で全空 (「全部 added」のノイズを出さない)。
+
+**履歴の持ち方** (`store/snapshot.ts`): `save()` は上書き前に直前の最新を
+`data/history/<slug>/<generatedAt>.json` へ退避する。`loadPrevious()` が最新の履歴を返す。
+`POST /reconcile` は保存前の最新と比較した `diff` を応答に同梱、`GET /api/snapshots/:label` は
+history の直前 run と比較した `diff` を付ける。
+
 ## 不変条件 (テスト)
 
 - `Player` ↔ `player` / `TitleScreen` ↔ `titlescreen` は name-mismatch で一致する

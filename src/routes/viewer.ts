@@ -69,6 +69,10 @@ export const VIEWER_HTML = `<!doctype html>
  .gapbox li{padding:5px 0;border-bottom:1px dashed var(--line);font-size:13px}
  .gapbox li:last-child{border-bottom:none}
  .empty{color:var(--muted);font-size:12px}
+ .diffbox{border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:10px;
+  padding:10px 14px;margin:12px 0;background:#fafbff;font-size:13px}
+ .diffbox h3{font-size:13px}
+ .diffbox b.yes{color:#0a7d33}.diffbox b.no{color:#c0392b}
  .muted{color:var(--muted);font-size:12px}
  #form{display:none;margin-top:10px}
  #form.open{display:block}
@@ -182,6 +186,8 @@ function render(r){
  const g1=(r.gaps.specsWithoutImpl||[]).map(c=>'<li>'+esc(c)+' '+lnk(specUrl[c],'仕様へ ✎')+'</li>').join('')||'<li class="empty">なし</li>';
  const g2=(r.gaps.codeDomainsWithoutSpec||[]).map(n=>'<li>'+esc(n)+' '+lnk(codeUrl[n],'実装へ ↗')+'</li>').join('')||'<li class="empty">なし</li>';
  const g3=(r.gaps.codeScreensWithoutSpec||[]).map(n=>'<li>'+esc(n)+' '+lnk(screenUrl[n],'実装へ ↗')+'</li>').join('')||'<li class="empty">なし</li>';
+ // 前回比 (history に直前 run があるときだけ)。 進捗が一目で分かる行を出す。
+ const diffHtml=renderDiff(r.diff);
 
  $('#detail').style.display='block';
  $('#detail').innerHTML=
@@ -195,6 +201,7 @@ function render(r){
    '<span class="badge name-mismatch">表記ゆれ</span>正規化で一致 '+
    '<span class="badge spec-only">実装欠落</span>仕様のみ '+
    '<span class="badge code-only">仕様欠落</span>実装のみ</div>'+
+  diffHtml+
   '<table><tr><th>Praeforma(仕様)</th><th>Anatomia(実装)</th><th>状態</th><th>アクション</th></tr>'+dm+'</table>'+
   (hasScenes?
    '<h2 style="margin-top:18px">シーン(layout)突合</h2>'+
@@ -211,6 +218,24 @@ function render(r){
  $('#detail').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function c(t,v){return '<div class="c"><span>'+esc(t)+'</span><b>'+esc(v)+'</b></div>'}
+// 前回比のレンダ。 hasPrevious=false (初回) は何も出さない。
+function renderDiff(d){
+ if(!d||!d.hasPrevious)return '';
+ const chips=Object.keys(d.summaryDelta||{}).map(k=>{const v=d.summaryDelta[k];return '<span class="pill '+(v>0?'ok':'no')+'">'+esc(k)+' '+(v>0?'+':'')+esc(v)+'</span>'}).join('')||'<span class="muted">数値変化なし</span>';
+ const list=(label,arr,cls)=>arr&&arr.length?'<div><b class="'+(cls||'')+'">'+esc(label)+'</b> '+arr.map(esc).join(', ')+'</div>':'';
+ const chg=(label,arr)=>arr&&arr.length?'<div><b>'+esc(label)+'</b> '+arr.map(x=>esc(x.name)+'('+esc(x.from)+'→'+esc(x.to)+')').join(', ')+'</div>':'';
+ const body=
+  list('✅ 実装された仕様',d.specs&&d.specs.nowImplemented,'yes')+
+  list('⚠ 退行した仕様',d.specs&&d.specs.regressed,'no')+
+  list('＋追加された仕様',d.specs&&d.specs.added)+
+  list('－消えた仕様',d.specs&&d.specs.removed)+
+  chg('ドメイン状態変化',d.domains&&d.domains.statusChanged)+
+  list('＋ドメイン',d.domains&&d.domains.added)+list('－ドメイン',d.domains&&d.domains.removed)+
+  chg('シーン状態変化',d.scenes&&d.scenes.statusChanged)+
+  list('＋シーン',d.scenes&&d.scenes.added)+list('－シーン',d.scenes&&d.scenes.removed);
+ return '<div class="diffbox"><h3 style="margin:0 0 6px">前回比 <span class="muted" style="font-weight:400">('+esc((d.previousAt||'').replace('T',' ').slice(0,16))+' から)</span></h3>'+
+  '<div style="margin-bottom:6px">'+chips+'</div>'+(body||'<span class="muted">突合の出入り・状態変化なし</span>')+'</div>';
+}
 
 $('#toggleForm').onclick=()=>$('#form').classList.toggle('open');
 $('#form').onsubmit=async e=>{

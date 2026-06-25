@@ -19,18 +19,39 @@ function slug(label: string): string {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'default';
 }
 
+/** ISO timestamp を Windows でも安全なファイル名にする (`:`/`.` を `-`)。 */
+function stampToFile(iso: string): string {
+  return iso.replace(/[:.]/g, '-');
+}
+
 export interface SnapshotStore {
+  /** 最新を保存し、 直前の最新を history へ退避する (前回比の素材)。 */
   save(result: ReconcileResult): Promise<string>;
   load(label: string): Promise<ReconcileResult | null>;
+  /** 直前の最新 (= 今回保存で history へ退避された 1 つ前の run)。 無ければ null。 */
+  loadPrevious(label: string): Promise<ReconcileResult | null>;
   /** 保存済みスナップショットのサマリ一覧 (新しい順)。 トップ画面のカード用。 */
   list(): Promise<SnapshotSummary[]>;
 }
 
 export function makeSnapshotStore(dataDir: string): SnapshotStore {
+  const historyDir = (label: string) => join(dataDir, 'history', slug(label));
+
   return {
     async save(result) {
       await mkdir(dataDir, { recursive: true });
       const file = join(dataDir, `${slug(result.project)}.json`);
+      // 既存の最新を history へ退避してから上書き (前回比の素材を残す)。
+      try {
+        const prevRaw = await readFile(file, 'utf8');
+        const prev = JSON.parse(prevRaw) as ReconcileResult;
+        const hd = historyDir(result.project);
+        await mkdir(hd, { recursive: true });
+        const stamp = stampToFile(prev.generatedAt ?? 'unknown');
+        await writeFile(join(hd, `${stamp}.json`), prevRaw, 'utf8');
+      } catch {
+        // 既存無し (初回) は退避しない。
+      }
       await writeFile(file, JSON.stringify(result, null, 2), 'utf8');
       return file;
     },
@@ -38,6 +59,24 @@ export function makeSnapshotStore(dataDir: string): SnapshotStore {
       const file = join(dataDir, `${slug(label)}.json`);
       try {
         return JSON.parse(await readFile(file, 'utf8')) as ReconcileResult;
+      } catch {
+        return null;
+      }
+    },
+    async loadPrevious(label) {
+      const hd = historyDir(label);
+      let files: string[];
+      try {
+        files = (await readdir(hd)).filter((f) => f.endsWith('.json'));
+      } catch {
+        return null;
+      }
+      // ファイル名 = sanitized generatedAt なので辞書順最大 = 最新。
+      files.sort();
+      const newest = files[files.length - 1];
+      if (!newest) return null;
+      try {
+        return JSON.parse(await readFile(join(hd, newest), 'utf8')) as ReconcileResult;
       } catch {
         return null;
       }

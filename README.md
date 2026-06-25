@@ -18,6 +18,9 @@ MUSA「9 人の女神」の **タレイア** — 企画↔実装トレーサビ�
 - **両方向ギャップ**: 実装の無い仕様 (未実装) / 仕様の無い実装ドメイン・スクリーン (仕様欠落)。
 
 結果は `data/<label>.json` に保存し、`GET /reconcile?project=<label>` で引ける。
+保存時に直前の最新は `data/history/<slug>/` へ退避し、`POST /reconcile` 応答と
+`GET /api/snapshots/:label` に**前回比 (`diff`)** を付ける (実装が付いた/退行した仕様・
+ドメイン/シーンの出入り・状態変化を一目で出す。初回は `hasPrevious:false`)。
 
 ## MUSA リレー (`POST /relay/anatomia`)
 

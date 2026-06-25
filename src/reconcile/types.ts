@@ -109,3 +109,42 @@ export interface ReconcileResult {
     implementedSpecs: number;
   };
 }
+
+/** ドメイン/シーンの状態が前回から変わった 1 行。 */
+export interface StatusChange {
+  name: string;
+  from: string;
+  to: string;
+}
+
+/** ドメイン/シーン突合の前回比 (出入り + 状態変化)。 */
+export interface MatchDelta {
+  /** 今回現れた (前回に無い) 名前。 */
+  added: string[];
+  /** 今回消えた (前回にあった) 名前。 */
+  removed: string[];
+  /** 同じ名前で status が変わった行。 */
+  statusChanged: StatusChange[];
+}
+
+/** 突合スナップショットの前回比。 進捗 (実装が進んだ/退行した) を一目で出す。 */
+export interface ReconcileDiff {
+  /** 比較対象の前回があったか。 false なら初回 (全て新規)。 */
+  hasPrevious: boolean;
+  /** 前回の generatedAt (無ければ null)。 */
+  previousAt: string | null;
+  domains: MatchDelta;
+  scenes: MatchDelta;
+  specs: {
+    /** 未実装→実装になった spec code (前進)。 */
+    nowImplemented: string[];
+    /** 実装→未実装に戻った spec code (退行、 要注意)。 */
+    regressed: string[];
+    /** 今回現れた spec code。 */
+    added: string[];
+    /** 今回消えた spec code。 */
+    removed: string[];
+  };
+  /** summary 各カウントの増減 (0 のキーは含めない)。 */
+  summaryDelta: Partial<Record<keyof ReconcileResult['summary'], number>>;
+}
