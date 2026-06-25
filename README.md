@@ -18,6 +18,14 @@ MUSA「9 人の女神」の **タレイア** — 企画↔実装トレーサビ�
 
 結果は `data/<label>.json` に保存し、`GET /reconcile?project=<label>` で引ける。
 
+## MUSA リレー (`POST /relay/anatomia`)
+
+Praeforma の要件定義モード (studio) が「対象 (ドメイン/シーン) に関連する処理グラフ」を
+Anatomia から引く受け口。**Praeforma → Thaleia → Anatomia の一方向**で、Anatomia の
+コードグラフ (`/api/graph`) を対象ドメインの実装 + 検索語で絞り込み、Praeforma の
+code-graph スキーマ (`nodes{key,label,type,anatomia_ref}` / `edges{from,to,relation}`) へ
+正規化して返す。Thaleia は解析を二重実装しない。詳細 → [spec/feature/relay.md](spec/feature/relay.md)。
+
 ## 突合ビューア (`GET /`)
 
 Thaleia の UI は「突合差分」そのものが中身で、仕様編集も解析も持たない (= 役割の二重実装を
@@ -40,8 +48,9 @@ src/
 ├── config.ts           env (PRAEFORMA_/ANATOMIA_ BASE_URL/TOKEN/WEB_URL)
 ├── clients/            上流クライアント (praeforma / anatomia)
 ├── reconcile/          突合: types / match(純粋) / engine(I/O)
+├── relay/              MUSA リレー: types / select(純粋) / engine(I/O)
 ├── links/              deeplink(純粋): 行→各サービスへの URL 生成
-├── routes/             /reconcile + /api/* + 突合ビューア
+├── routes/             /reconcile + /relay/anatomia + /api/* + 突合ビューア
 └── store/              data/*.json スナップショット (save/load/list)
 ```
 
