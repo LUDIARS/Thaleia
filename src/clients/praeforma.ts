@@ -3,7 +3,7 @@
 // Praeforma は Cernere PASETO 認証。 token は service token を bearer で渡す。
 // 返却は Drizzle raw row (camelCase キー)。 id/name/code/title 等の素直なフィールドのみ使う。
 
-import type { PfDomain } from '../reconcile/types.ts';
+import type { PfDomain, PfLayout } from '../reconcile/types.ts';
 
 export interface PfSpecRow {
   id: string;
@@ -20,6 +20,7 @@ export interface PfSpecTarget {
 
 export interface PraeformaClient {
   listDomains(pid: string): Promise<PfDomain[]>;
+  listLayouts(pid: string): Promise<PfLayout[]>;
   listSpecs(pid: string): Promise<PfSpecRow[]>;
   getSpecTargets(pid: string, sid: string): Promise<PfSpecTarget[]>;
 }
@@ -48,6 +49,13 @@ export function makePraeformaClient(opts: PraeformaClientOptions): PraeformaClie
         `/api/projects/${encodeURIComponent(pid)}/domains`,
       );
       return data.items.map((d) => ({ id: d.id, name: d.name, description: d.description ?? null }));
+    },
+    async listLayouts(pid) {
+      // layout = scene (spec §4)。 ローカルモードの 15 テーブルサブセットにも layouts は含まれる。
+      const data = await get<{ items: Array<{ id: string; name: string; description?: string | null }> }>(
+        `/api/projects/${encodeURIComponent(pid)}/layouts`,
+      );
+      return data.items.map((l) => ({ id: l.id, name: l.name, description: l.description ?? null }));
     },
     async listSpecs(pid) {
       const data = await get<{ items: PfSpecRow[] }>(

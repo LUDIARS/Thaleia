@@ -59,7 +59,11 @@ export function makeSnapshotStore(dataDir: string): SnapshotStore {
             pfProjectId: r.pfProjectId ?? '',
             anatomiaProject: r.anatomiaProject ?? '',
             summary: r.summary,
-            gapCount: r.gaps.specsWithoutImpl.length + r.gaps.codeDomainsWithoutSpec.length,
+            // 旧スナップショットは codeScreensWithoutSpec 無し → ?? [] で安全に。
+            gapCount:
+              r.gaps.specsWithoutImpl.length +
+              r.gaps.codeDomainsWithoutSpec.length +
+              (r.gaps.codeScreensWithoutSpec ?? []).length,
           });
         } catch {
           // 壊れた/旧形式の JSON は一覧から黙って除外せず skip するが、 個別 load では拾える。
