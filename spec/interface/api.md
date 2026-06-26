@@ -54,11 +54,41 @@ Anatomia の一方向 (ここで Praeforma は呼ばない)。詳細は [feature
 - 対象ドメインが Anatomia に無ければ `matched:false` + `functions:[]` (mock を返さない)
 - 関数は `MAX_TRACE_FUNCTIONS`(200) で切り詰め (超過は `truncated:true` + `totalImplementors`)
 
+### `GET /api/trace/spec?pfProject=<pfId>&anatomiaProject=<anId>&spec=<code>&max=<n>`
+**Pf spec 起点**の関数粒度トレース。Pf で spec→target ドメインを解決し、各 target ドメインの
+TraceResult を束ねる (要件↔関数の直結トレーサビリティ)。詳細は [feature/trace.md](../feature/trace.md)。
+```jsonc
+// response 200 = SpecTraceResult
+{ "specCode":"...", "specTitle":"...", "targetDomains":["..."],
+  "domains": [ /* TraceResult (上記 /api/trace と同形) */ ],
+  "summary": { "domainCount","matchedDomains","functionCount","linkedFunctions" } }
+```
+- `pfProject` / `anatomiaProject` / `spec` 必須 (無ければ 400)
+- Pf か Anatomia 未設定 `503 { error:"upstream_unconfigured" }`、上流エラー 502
+- spec code が Pf に無ければ `404 { error:"spec_not_found" }`
+- target ドメインの重複は正規化名で 1 つに畳む。未検出 target は `matched:false` のドメイン要素
+
+### `GET /api/links/worklist?project=<anId>&threshold=<0..1>&max=<n>`
+未批准 (`ratified:false`) / 低 confidence の spec-link を「要レビュー」で集める棚卸し。
+詳細は [feature/links.md](../feature/links.md)。
+```jsonc
+// response 200 = LinkWorklistResult
+{ "threshold":0.7,
+  "items": [{ "from","fromName","resolvedName","resolvedPath","clauseHeading","clauseFile",
+              "confidence","ratified","reasons":["unratified"|"low-confidence"] }],
+  "summary": { "totalLinks","flagged","unratified","lowConfidence","shown","truncated" } }
+```
+- `project` 必須 (無ければ 400)、Anatomia 未設定 503、上流エラー 502
+- `threshold` 省略/範囲外は `THALEIA_LINK_CONFIDENCE_THRESHOLD` (既定 0.7) を使う
+- 並びは未批准を先・confidence 昇順 (レビュー優先度順)、`MAX_WORKLIST_ITEMS`(300) で切り詰め
+
 ### `GET /`
 突合専用ビューア (SPA、ビルド不要)。スナップショット一覧 → 突合マトリクス/仕様カバレッジ/
 ギャップ・ワークリストを表示し、各行から Praeforma(仕様編集)/Anatomia(実装閲覧)へ
-ディープリンクで送り出す。実装ありドメイン行の「関数 ▾」で `/api/trace` を引いて関数粒度を
-展開する。下記 `/api/*` を読む。
+ディープリンクで送り出す。実装ありドメイン行の「関数 ▾」で `/api/trace`、仕様カバレッジ行の
+「関数 ▾」で `/api/trace/spec` を引いて関数粒度を展開する。詳細下部の「未批准 spec-link
+ワークリスト」セクションは `/api/links/worklist` を引いて要レビューのコード↔仕様リンクを並べる。
+下記 `/api/*` を読む。
 
 ## 閲覧用 API (`routes/api.ts`、読み取り専用)
 

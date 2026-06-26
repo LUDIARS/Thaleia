@@ -47,3 +47,30 @@ export interface TraceResult {
     totalImplementors: number;
   };
 }
+
+/**
+ * Pf spec 1 件の関数粒度トレース結果。
+ *
+ * 「要件 (spec) → その target ドメイン群 → 各ドメインを実装する関数 → spec-links」を
+ * 直結する。 要件↔関数のトレーサビリティ (ドメイン単位の TraceResult を spec 起点に束ねたもの)。
+ */
+export interface SpecTraceResult {
+  /** Pf spec の code。 */
+  specCode: string;
+  /** Pf spec の title。 */
+  specTitle: string;
+  /** spec が target に指定したドメイン名 (Pf 側で id→name 解決済)。 */
+  targetDomains: string[];
+  /** target ドメインごとの関数トレース (domain 単位 TraceResult をそのまま束ねる)。 */
+  domains: TraceResult[];
+  summary: {
+    /** target ドメイン数。 */
+    domainCount: number;
+    /** Anatomia の検出ドメインに在った (実装が見つかった) target 数。 */
+    matchedDomains: number;
+    /** 全 target を通じた関数数の合計 (重複ドメインが無い前提)。 */
+    functionCount: number;
+    /** spec 節リンクを 1 つ以上持つ関数数の合計。 */
+    linkedFunctions: number;
+  };
+}
