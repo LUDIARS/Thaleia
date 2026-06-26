@@ -19,6 +19,8 @@ export interface ThaleiaConfig {
   claudeBin: string;
   /** ランキング後に残す上限件数。 */
   rankTopK: number;
+  /** reconcile の意味照合を有効化するか (THALEIA_SEMANTIC_MATCH=1)。 既定 false=字面のみ。 */
+  semanticMatch: boolean;
 }
 
 export function loadConfig(): ThaleiaConfig {
@@ -33,5 +35,6 @@ export function loadConfig(): ThaleiaConfig {
     llmRank: process.env.THALEIA_LLM_RANK === '1',
     claudeBin: process.env.THALEIA_CLAUDE_BIN ?? 'claude',
     rankTopK: Number(process.env.THALEIA_RANK_TOP_K ?? 40),
+    semanticMatch: process.env.THALEIA_SEMANTIC_MATCH === '1',
   };
 }

@@ -52,6 +52,20 @@
 specs, implementedSpecs }`。`anatomiaDomains`/`anatomiaScreens` は正規化重複を畳んだ後の数
 (同名は implementorCount 最大を採用)。
 
+## 意味照合 (opt-in、`THALEIA_SEMANTIC_MATCH=1`)
+
+`normalizeName` は表記ゆれ (Player↔player) しか吸えず、 概念が同じだが語が違う
+(状態機械↔state-machine、 戦闘↔combat) は spec-only / code-only に分かれる。有効時、 engine は
+まず字面で突合 → 未対応の Pf 名 (spec-only) と An 名 (code-only) を `claude -p` に渡し
+「同じ概念のペア」を貰い (`reconcile/semantic.ts`)、 それを **alias** として再突合する。
+
+- alias で対応付いた行は `status='name-mismatch'` + `semantic:true` (字面ゆれと区別)。
+  仕様カバレッジ・ギャップ・summary はすべて alias 込みで再計算される。
+- LLM が創作した名・入力に無い名は捨てる。`confidence < 0.5` は不採用。各名 1:1。
+- **真の embedding は no-API 規約下で持てない**ため LLM 判定で代替 (語ベクトルではなく概念判定)。
+- 既定 off = 字面のみ (fallback ではなく既定モード)。有効時に claude 不在/失敗は `502` 明示
+  (字面結果へ黙って戻さない)。domain と scene を別々に照合する。
+
 ## 突合履歴の差分 (`src/reconcile/diff.ts`)
 
 トレーサビリティは「いま」だけでなく「前回からどう変わったか」が価値。`diffReconcile(prev, curr)`
