@@ -54,6 +54,8 @@ export interface DomainMatch {
    * code-only: Anatomia にのみ存在 (= 仕様欠落)
    */
   status: 'matched' | 'name-mismatch' | 'spec-only' | 'code-only';
+  /** 字面でなく LLM 意味照合で対応付いた行か (status は name-mismatch)。 */
+  semantic?: boolean;
 }
 
 /** シーン突合 1 行。 仕様(人間の layout) ↔ 実装(Anatomia 検出スクリーン) の対応とギャップ。 */
@@ -64,6 +66,8 @@ export interface SceneMatch {
   anatomiaScreen: string | null;
   /** domain と同じ 4 状態 (matched / name-mismatch / spec-only / code-only)。 */
   status: 'matched' | 'name-mismatch' | 'spec-only' | 'code-only';
+  /** 字面でなく LLM 意味照合で対応付いた行か。 */
+  semantic?: boolean;
 }
 
 /** 仕様書のカバレッジ (実装されているか)。 */

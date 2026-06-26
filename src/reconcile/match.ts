@@ -30,6 +30,16 @@ export interface ReconcileInput {
   pfLayouts?: PfLayout[];
   /** Anatomia の検出スクリーン。 省略時は scene 突合をスキップ。 */
   anatomiaScreens?: AnatomiaScreen[];
+  /** 意味照合で対応付いたドメイン名ペア (字面で外れたものを LLM が結んだ)。 */
+  domainAliases?: NameAlias[];
+  /** 意味照合で対応付いたシーン名ペア。 */
+  sceneAliases?: NameAlias[];
+}
+
+/** 意味照合の同概念ペア (Pf 名 ↔ Anatomia 名)。 */
+export interface NameAlias {
+  pf: string;
+  an: string;
 }
 
 /** 汎用の名前突合 1 行 (domain/scene 共通)。 */
@@ -37,6 +47,8 @@ interface NameMatch {
   pf: string | null;
   an: string | null;
   status: 'matched' | 'name-mismatch' | 'spec-only' | 'code-only';
+  /** 意味照合で対応付いたか。 */
+  semantic?: boolean;
 }
 
 interface AnItem {
@@ -59,13 +71,15 @@ interface BipartiteResult {
  * Pf 側の名前群と Anatomia 側の実装群を正規化名で突き合わせる (domain/scene 共通の純粋関数)。
  * matched / name-mismatch(表記ゆれ) / spec-only(実装欠落) / code-only(仕様欠落) に分類。
  */
-function bipartiteMatch(pfNames: string[], anItems: AnItem[]): BipartiteResult {
+function bipartiteMatch(pfNames: string[], anItems: AnItem[], aliases: NameAlias[] = []): BipartiteResult {
   const anByNorm = new Map<string, AnItem>();
   for (const a of anItems) {
     const k = normalizeName(a.name);
     const prev = anByNorm.get(k);
     if (!prev || a.implementorCount > prev.implementorCount) anByNorm.set(k, a);
   }
+  // 意味照合エイリアス: 正規化 Pf 名 → 対応 Anatomia 正規化名。
+  const aliasByPfNorm = new Map(aliases.map((a) => [normalizeName(a.pf), normalizeName(a.an)]));
 
   const matches: NameMatch[] = [];
   const matchedNorms = new Set<string>();
@@ -73,11 +87,26 @@ function bipartiteMatch(pfNames: string[], anItems: AnItem[]): BipartiteResult {
 
   for (const name of pfNames) {
     const norm = normalizeName(name);
-    const an = anByNorm.get(norm);
+    // まず字面 (正規化) で照合、 外れたら意味照合エイリアスで照合。
+    let an = anByNorm.get(norm);
+    let semantic = false;
+    if (!an) {
+      const aliasNorm = aliasByPfNorm.get(norm);
+      if (aliasNorm) {
+        an = anByNorm.get(aliasNorm);
+        semantic = Boolean(an);
+      }
+    }
     if (an) {
-      matchedNorms.add(norm);
+      matchedNorms.add(normalizeName(an.name));
       implementedByNorm.set(norm, an.implementorCount > 0);
-      matches.push({ pf: name, an: an.name, status: name === an.name ? 'matched' : 'name-mismatch' });
+      matches.push({
+        pf: name,
+        an: an.name,
+        // 意味照合は語が違うので name-mismatch 扱い (semantic フラグで区別)。
+        status: !semantic && name === an.name ? 'matched' : 'name-mismatch',
+        ...(semantic ? { semantic: true } : {}),
+      });
     } else {
       implementedByNorm.set(norm, false);
       matches.push({ pf: name, an: null, status: 'spec-only' });
@@ -111,22 +140,26 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
   const dom = bipartiteMatch(
     pfDomains.map((d) => d.name),
     anatomiaDomains,
+    input.domainAliases ?? [],
   );
   const domainMatches: DomainMatch[] = dom.matches.map((m) => ({
     pfDomain: m.pf,
     anatomiaDomain: m.an,
     status: m.status,
+    ...(m.semantic ? { semantic: true } : {}),
   }));
 
   // ── シーン(layout)突合 (スクリーンは存在 = implementorCount 1) ──
   const scn = bipartiteMatch(
     pfLayouts.map((l) => l.name),
     anatomiaScreens.map((s) => ({ name: s.name, implementorCount: 1 })),
+    input.sceneAliases ?? [],
   );
   const sceneMatches: SceneMatch[] = scn.matches.map((m) => ({
     pfScene: m.pf,
     anatomiaScreen: m.an,
     status: m.status,
+    ...(m.semantic ? { semantic: true } : {}),
   }));
 
   // ── 仕様カバレッジ: target ドメイン or シーンのいずれかが実装ありなら実装済 ──

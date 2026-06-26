@@ -52,14 +52,21 @@ AIFormat の分類フォルダに揃える (`data` / `feature` / `interface` / `
 | `PRAEFORMA_WEB_URL` | (なし) | ビューアの Praeforma ディープリンク先。未設定ならリンク無効表示 |
 | `ANATOMIA_WEB_URL` | `ANATOMIA_BASE_URL` | ビューアの Anatomia ディープリンク先 (未設定なら API base 流用) |
 | `THALEIA_LLM_RANK` | (なし) | `1` で `/relay/anatomia` の LLM 意味ランキングを有効化 (既定 off=構造選択のみ) |
-| `THALEIA_CLAUDE_BIN` | `claude` | ランキング用 claude CLI (Windows は git-bash wrapper を差せる) |
+| `THALEIA_SEMANTIC_MATCH` | (なし) | `1` で reconcile の意味照合を有効化 (字面で外れた未対応を `claude -p` で対応付け。既定 off) |
+| `THALEIA_CLAUDE_BIN` | `claude` | LLM 用 claude CLI (Windows は git-bash wrapper を差せる) |
 | `THALEIA_RANK_TOP_K` | `40` | ランキング後に残す上限件数 |
 
-## 次フェーズ (v1 未了)
+## 完了済 (主要機能)
 
-- Anatomia spec-links / graph を使った行レベルのトレーサビリティ。
-- 意味照合 (名寄せだけでなく embedding で近い概念を対応付け)。
-- 実環境フル E2E は通済 (studio anatomia-link / scene reconcile を実 Pf+An で確認)。
+- 突合 v1 (domain) + scene(layout) target (二部マッチで layout↔screen)。
+- MUSA リレー `/relay/anatomia` + LLM 意味ランキング (opt-in)。
+- 突合履歴の差分 (前回比 diff)。
+- 関数粒度トレース `/api/trace` (spec-links を関数へ join)。
+- 意味照合 (opt-in、字面で外れた未対応を `claude -p` で対応付け = 真 embedding の代替)。
+- 実環境フル E2E 通済 (studio anatomia-link / scene / diff / trace / semantic を実 Pf+An で確認)。
 
-完了済: scene(layout) target 突合 (domain と同じ二部マッチで layout↔screen) /
-MUSA リレー `/relay/anatomia` + LLM 意味ランキング / PROJECT-CODES `Th` 追記。
+## 次フェーズ
+
+- Pf spec → target ドメインの実装関数を直接ぶら下げる (trace の spec 単位化)。
+- spec-link confidence/ratified を使った「未批准リンク」ワークリスト。
+- Praeforma フロントが `?tab/focus` クエリを消費して個別エンティティへ着地 (deeplink は対応済)。
