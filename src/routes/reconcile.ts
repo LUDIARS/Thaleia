@@ -11,6 +11,7 @@ import { makePraeformaClient } from '../clients/praeforma.ts';
 import { makeAnatomiaClient } from '../clients/anatomia.ts';
 import { runReconcile } from '../reconcile/engine.ts';
 import { diffReconcile } from '../reconcile/diff.ts';
+import { makeClaudeRunner, LlmError } from '../llm/claude.ts';
 import { VIEWER_HTML } from './viewer.ts';
 
 export function mountReconcileRoutes(app: Hono, config: ThaleiaConfig, store: SnapshotStore): void {
@@ -36,16 +37,23 @@ export function mountReconcileRoutes(app: Hono, config: ThaleiaConfig, store: Sn
     try {
       // 前回比のため、 上書き保存の前に直前の最新を読む。
       const prev = await store.load(label);
+      // 意味照合は opt-in (THALEIA_SEMANTIC_MATCH=1)。 有効時のみ runner を渡す。
+      const semanticRunner = config.semanticMatch ? makeClaudeRunner(config.claudeBin) : undefined;
       const result = await runReconcile(pf, an, {
         label,
         pfProjectId: pfProject,
         anatomiaProject: anatomiaProject!,
         now: new Date().toISOString(),
+        semanticRunner,
       });
       await store.save(result);
       const diff = diffReconcile(prev, result);
       return c.json({ ...result, diff });
     } catch (e) {
+      // 意味照合 LLM の失敗は字面結果へ黙って戻さず明示エラー (無言 fallback 禁止)。
+      if (e instanceof LlmError) {
+        return c.json({ error: e.code, detail: e.message, hint: 'THALEIA_SEMANTIC_MATCH=1 のとき claude CLI が必要です' }, 502);
+      }
       return c.json({ error: 'upstream_failed', detail: String(e) }, 502);
     }
   });

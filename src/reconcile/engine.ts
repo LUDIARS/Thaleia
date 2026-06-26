@@ -2,6 +2,8 @@
 
 import type { PfSpec, ReconcileResult } from './types.ts';
 import { reconcile } from './match.ts';
+import { semanticMatch } from './semantic.ts';
+import type { ClaudeRunner } from '../llm/claude.ts';
 import type { PraeformaClient } from '../clients/praeforma.ts';
 import type { AnatomiaClient } from '../clients/anatomia.ts';
 
@@ -14,6 +16,8 @@ export interface ReconcileParams {
   anatomiaProject: string;
   /** ISO timestamp (呼び出し側が供給)。 */
   now: string;
+  /** 指定時、 字面で外れた未対応を LLM で意味照合する (opt-in)。 未指定なら字面のみ。 */
+  semanticRunner?: ClaudeRunner;
 }
 
 /** Praeforma(仕様) と Anatomia(実装) を突合する。 */
@@ -54,7 +58,7 @@ export async function runReconcile(
   const anatomiaDomains = await an.listDomains(params.anatomiaProject);
   const anatomiaScreens = await an.listScreens(params.anatomiaProject);
 
-  const result = reconcile({
+  const baseInput = {
     project: params.label,
     pfProjectId: params.pfProjectId,
     anatomiaProject: params.anatomiaProject,
@@ -63,6 +67,30 @@ export async function runReconcile(
     anatomiaDomains,
     pfLayouts,
     anatomiaScreens,
-  });
+  };
+
+  // 意味照合 (opt-in): まず字面で突合 → 未対応の両側を LLM で意味照合 → alias を渡して再突合。
+  if (params.semanticRunner) {
+    const structural = reconcile(baseInput);
+    const specOnlyDomains = structural.domainMatches
+      .filter((m) => m.status === 'spec-only')
+      .map((m) => m.pfDomain!)
+      .filter(Boolean);
+    const specOnlyScenes = structural.sceneMatches
+      .filter((m) => m.status === 'spec-only')
+      .map((m) => m.pfScene!)
+      .filter(Boolean);
+    const [domainAliases, sceneAliases] = await Promise.all([
+      semanticMatch(specOnlyDomains, structural.gaps.codeDomainsWithoutSpec, 'ドメイン', params.semanticRunner),
+      semanticMatch(specOnlyScenes, structural.gaps.codeScreensWithoutSpec, 'シーン', params.semanticRunner),
+    ]);
+    if (domainAliases.length > 0 || sceneAliases.length > 0) {
+      const merged = reconcile({ ...baseInput, domainAliases, sceneAliases });
+      return { ...merged, generatedAt: params.now };
+    }
+    return { ...structural, generatedAt: params.now };
+  }
+
+  const result = reconcile(baseInput);
   return { ...result, generatedAt: params.now };
 }

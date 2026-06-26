@@ -42,6 +42,7 @@ export const VIEWER_HTML = `<!doctype html>
  .pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;margin-right:4px}
  .pill.gap{background:#fef2f2;color:var(--specOnly)}
  .pill.ok{background:#ecfdf5;color:var(--matched)}
+ .pill.sem{background:#eef2ff;color:#4338ca}
  .stat{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px}
  .stat .c{border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:96px;background:#fff}
  .stat .c span{color:var(--muted);font-size:11px}
@@ -164,7 +165,7 @@ function render(r){
   // 実装ありドメインは関数粒度トレースへ掘り下げ可能。
   if(m.anatomiaDomain)acts.push('<button class="lnk traceBtn" data-an="'+esc(m.anatomiaDomain)+'">関数 ▾</button>');
   return '<tr><td>'+esc(m.pfDomain??'—')+'</td><td>'+esc(m.anatomiaDomain??'—')+'</td>'+
-   '<td><span class="badge '+m.status+'">'+esc(STATUS_JA[m.status]||m.status)+'</span></td>'+
+   '<td><span class="badge '+m.status+'">'+esc(STATUS_JA[m.status]||m.status)+'</span>'+(m.semantic?' <span class="pill sem">意味照合</span>':'')+'</td>'+
    '<td>'+acts.join('')+'</td></tr>';
  }).join('');
  // シーン(layout)突合行 (domain と同形。 旧スナップショットは sceneMatches 無し)。
@@ -173,7 +174,7 @@ function render(r){
   if(m.pfScene)acts.push(lnk(m.links&&m.links.praeforma,'仕様を編集 ✎'));
   if(m.anatomiaScreen)acts.push(lnk(m.links&&m.links.anatomia,'実装を見る ↗'));
   return '<tr><td>'+esc(m.pfScene??'—')+'</td><td>'+esc(m.anatomiaScreen??'—')+'</td>'+
-   '<td><span class="badge '+m.status+'">'+esc(STATUS_JA[m.status]||m.status)+'</span></td>'+
+   '<td><span class="badge '+m.status+'">'+esc(STATUS_JA[m.status]||m.status)+'</span>'+(m.semantic?' <span class="pill sem">意味照合</span>':'')+'</td>'+
    '<td>'+acts.join('')+'</td></tr>';
  }).join('');
  const hasScenes=(su.pfScenes||0)>0||(su.anatomiaScreens||0)>0;
