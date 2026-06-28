@@ -158,6 +158,7 @@ function render(r){
  const su=r.summary;
  // ドメイン突合行 (アクション = 存在する側へのディープリンク)。
  window.__anProject=r.anatomiaProject||'';
+ window.__pfProject=r.pfProjectId||'';
  const dm=r.domainMatches.map(m=>{
   const acts=[];
   if(m.pfDomain)acts.push(lnk(m.links&&m.links.praeforma,'仕様を編集 ✎'));
@@ -181,10 +182,13 @@ function render(r){
  // 仕様カバレッジ (target は domain + scene)。
  const sc=r.specCoverage.map(s=>{
   const tgt=[...(s.targetDomains||[]),...((s.targetScenes||[]).map(x=>'scene:'+x))].join(', ')||'—';
+  // target ドメインを持つ仕様は spec 起点で実装関数へ直接掘り下げできる。
+  const acts=[lnk(s.praeformaUrl,'仕様を開く ✎')];
+  if((s.targetDomains||[]).length)acts.push('<button class="lnk specTraceBtn" data-spec="'+esc(s.specCode)+'">関数 ▾</button>');
   return '<tr><td>'+esc(s.specCode)+'</td><td>'+esc(s.specTitle)+'</td><td>'+esc(tgt)+'</td>'+
   '<td class="'+(s.implemented?'yes':'no')+'">'+(s.implemented?'実装あり':'未実装')+'</td>'+
   '<td class="muted">'+esc(s.evidence)+'</td>'+
-  '<td>'+lnk(s.praeformaUrl,'仕様を開く ✎')+'</td></tr>';
+  '<td>'+acts.join('')+'</td></tr>';
  }).join('');
  // ギャップ・ワークリスト (リンクは詳細行から引く)。
  const specUrl={};r.specCoverage.forEach(s=>{specUrl[s.specCode]=s.praeformaUrl});
@@ -217,14 +221,23 @@ function render(r){
    :'')+
   '<h2 style="margin-top:18px">仕様カバレッジ</h2>'+
   '<table><tr><th>code</th><th>title</th><th>target</th><th>実装</th><th>根拠</th><th>アクション</th></tr>'+sc+'</table>'+
+  '<div id="specTraceOut"></div>'+
   '<h2 style="margin-top:18px">ギャップ・ワークリスト</h2>'+
   '<div class="gaps">'+
    '<div class="gapbox"><h3 class="no">未実装の仕様 (Praeforma へ)</h3><ul>'+g1+'</ul></div>'+
    '<div class="gapbox"><h3 class="code-only">仕様の無い実装ドメイン (Anatomia へ)</h3><ul>'+g2+'</ul></div>'+
    (hasScenes?'<div class="gapbox"><h3 class="code-only">仕様の無い実装スクリーン (Anatomia へ)</h3><ul>'+g3+'</ul></div>':'')+
-  '</div>';
+  '</div>'+
+  '<h2 style="margin-top:18px">未批准 spec-link ワークリスト</h2>'+
+  '<div class="muted" style="margin-bottom:6px">Anatomia の spec-link のうち <b>未批准 (ratified:false)</b> ・ <b>低 confidence</b> のものを集めて、 要レビューのコード↔仕様リンクを棚卸しします。</div>'+
+  '<button class="lnk" id="worklistBtn">ワークリストを読み込む</button>'+
+  '<div id="worklistOut"></div>';
  // 関数トレースのドリルダウン (実装ありドメインの「関数 ▾」)。
  $('#detail').querySelectorAll('.traceBtn').forEach(b=>b.onclick=()=>openTrace(b.dataset.an));
+ // spec 起点の関数トレース (仕様カバレッジ行の「関数 ▾」)。
+ $('#detail').querySelectorAll('.specTraceBtn').forEach(b=>b.onclick=()=>openSpecTrace(b.dataset.spec));
+ // 未批准 spec-link ワークリスト。
+ const wb=$('#worklistBtn');if(wb)wb.onclick=()=>openWorklist();
  $('#detail').scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function openTrace(domain){
@@ -246,6 +259,56 @@ async function openTrace(domain){
    '<table><tr><th>関数</th><th>ファイル</th><th>spec 節リンク</th></tr>'+rows+'</table>'+
    '<div style="margin-top:6px"><button class="lnk" id="traceClose">閉じる</button></div></div>';
   $('#traceClose').onclick=()=>{out.innerHTML=''};
+ }catch(e){out.innerHTML='<div class="no" style="padding:8px">'+esc(e)+'</div>'}
+}
+// spec 起点の関数トレース: 仕様 → target ドメイン群 → 実装関数 + spec-links。
+async function openSpecTrace(spec){
+ const out=$('#specTraceOut');if(!out)return;
+ out.innerHTML='<div class="muted" style="padding:8px">仕様「'+esc(spec)+'」の実装関数を取得中…</div>';
+ try{
+  const res=await fetch('/api/trace/spec?pfProject='+encodeURIComponent(window.__pfProject||'')+'&anatomiaProject='+encodeURIComponent(window.__anProject||'')+'&spec='+encodeURIComponent(spec));
+  const r=await res.json();
+  if(!res.ok){out.innerHTML='<div class="no" style="padding:8px">トレース失敗: '+esc(r.error||'')+' '+esc(r.hint||r.detail||'')+'</div>';return}
+  const su=r.summary||{};
+  const blocks=(r.domains||[]).map(d=>{
+   if(!d.matched)return '<div class="muted" style="margin:6px 0">ドメイン「'+esc(d.domain)+'」は Anatomia の検出ドメインに無し。</div>';
+   const rows=(d.functions||[]).map(f=>{
+    const links=(f.specLinks||[]).map(l=>'<span class="pill '+(l.ratified?'ok':'gap')+'" title="'+esc(l.clauseFile)+' ('+esc(l.confidence)+')">'+esc(l.clauseHeading)+'</span>').join(' ')||'<span class="muted">spec リンクなし</span>';
+    return '<tr><td><code>'+esc(f.name)+'</code></td><td class="muted">'+esc(f.path)+'</td><td>'+links+'</td></tr>';
+   }).join('');
+   const ds=d.summary||{};
+   return '<div style="margin:8px 0"><b>ドメイン: '+esc(d.domain)+'</b> <span class="muted">('+esc(ds.functionCount)+' 関数 / spec リンクあり '+esc(ds.linkedFunctions)+(ds.truncated?' / 上限切り詰め 全'+esc(ds.totalImplementors):'')+')</span>'+
+    '<table><tr><th>関数</th><th>ファイル</th><th>spec 節リンク</th></tr>'+rows+'</table></div>';
+  }).join('')||'<div class="muted" style="padding:6px">この仕様に target ドメインがありません。</div>';
+  out.innerHTML='<div class="tracebox"><h3 style="margin:0 0 6px">仕様トレース: '+esc(r.specCode)+' '+esc(r.specTitle)+
+   ' <span class="muted" style="font-weight:400">(target '+esc(su.matchedDomains)+'/'+esc(su.domainCount)+' 実装 ・ '+esc(su.functionCount)+' 関数 / spec リンクあり '+esc(su.linkedFunctions)+')</span></h3>'+
+   blocks+
+   '<div style="margin-top:6px"><button class="lnk" id="specTraceClose">閉じる</button></div></div>';
+  $('#specTraceClose').onclick=()=>{out.innerHTML=''};
+ }catch(e){out.innerHTML='<div class="no" style="padding:8px">'+esc(e)+'</div>'}
+}
+// 未批准 spec-link ワークリスト: ratified:false / 低 confidence のリンクを要レビューで並べる。
+async function openWorklist(){
+ const out=$('#worklistOut');if(!out)return;
+ out.innerHTML='<div class="muted" style="padding:8px">ワークリストを取得中…</div>';
+ try{
+  const res=await fetch('/api/links/worklist?project='+encodeURIComponent(window.__anProject||''));
+  const r=await res.json();
+  if(!res.ok){out.innerHTML='<div class="no" style="padding:8px">取得失敗: '+esc(r.error||'')+' '+esc(r.hint||r.detail||'')+'</div>';return}
+  const su=r.summary||{};
+  if(!(r.items||[]).length){out.innerHTML='<div class="tracebox"><div class="muted" style="padding:4px">要レビューの spec-link はありません (全 '+esc(su.totalLinks)+' 件、 閾値 '+esc(r.threshold)+')。</div></div>';return}
+  const rows=(r.items||[]).map(it=>{
+   const name=it.resolvedName||it.fromName||it.from;
+   const reasons=(it.reasons||[]).map(x=>x==='unratified'?'<span class="pill gap">未批准</span>':'<span class="pill sem">低conf</span>').join(' ');
+   return '<tr><td><code>'+esc(name)+'</code><div class="muted">'+esc(it.resolvedPath||it.from)+'</div></td>'+
+    '<td>'+esc(it.clauseHeading)+'<div class="muted">'+esc(it.clauseFile)+'</div></td>'+
+    '<td>'+esc(it.confidence)+'</td><td>'+reasons+'</td></tr>';
+  }).join('');
+  out.innerHTML='<div class="tracebox" style="border-left-color:#b8860b;background:#fffdf5"><h3 style="margin:0 0 6px">要レビュー spec-link '+
+   '<span class="muted" style="font-weight:400">(要レビュー '+esc(su.flagged)+' / 全 '+esc(su.totalLinks)+' ・ 未批准 '+esc(su.unratified)+' ・ 低conf '+esc(su.lowConfidence)+' ・ 閾値 '+esc(r.threshold)+(su.truncated?' ・ 上限切り詰め 表示 '+esc(su.shown):'')+')</span></h3>'+
+   '<table><tr><th>コード (関数/ファイル)</th><th>spec 節</th><th>conf</th><th>理由</th></tr>'+rows+'</table>'+
+   '<div style="margin-top:6px"><button class="lnk" id="worklistClose">閉じる</button></div></div>';
+  $('#worklistClose').onclick=()=>{out.innerHTML=''};
  }catch(e){out.innerHTML='<div class="no" style="padding:8px">'+esc(e)+'</div>'}
 }
 function c(t,v){return '<div class="c"><span>'+esc(t)+'</span><b>'+esc(v)+'</b></div>'}

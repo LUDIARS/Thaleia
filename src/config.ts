@@ -21,6 +21,11 @@ export interface ThaleiaConfig {
   rankTopK: number;
   /** reconcile の意味照合を有効化するか (THALEIA_SEMANTIC_MATCH=1)。 既定 false=字面のみ。 */
   semanticMatch: boolean;
+  /**
+   * spec-link ワークリストで「低 confidence」とみなす閾値 (この値未満を要レビュー扱い)。
+   * THALEIA_LINK_CONFIDENCE_THRESHOLD で opt-in 変更可。 既定 0.7。
+   */
+  linkConfidenceThreshold: number;
 }
 
 export function loadConfig(): ThaleiaConfig {
@@ -36,5 +41,13 @@ export function loadConfig(): ThaleiaConfig {
     claudeBin: process.env.THALEIA_CLAUDE_BIN ?? 'claude',
     rankTopK: Number(process.env.THALEIA_RANK_TOP_K ?? 40),
     semanticMatch: process.env.THALEIA_SEMANTIC_MATCH === '1',
+    linkConfidenceThreshold: parseThreshold(process.env.THALEIA_LINK_CONFIDENCE_THRESHOLD),
   };
+}
+
+/** 0..1 の閾値を解釈。 未設定/不正値は既定 0.7。 */
+function parseThreshold(raw: string | undefined): number {
+  const n = Number(raw);
+  if (raw === undefined || raw === '' || !Number.isFinite(n) || n < 0 || n > 1) return 0.7;
+  return n;
 }
