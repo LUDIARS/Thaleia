@@ -55,6 +55,7 @@ AIFormat の分類フォルダに揃える (`data` / `feature` / `interface` / `
 | `THALEIA_SEMANTIC_MATCH` | (なし) | `1` で reconcile の意味照合を有効化 (字面で外れた未対応を `claude -p` で対応付け。既定 off) |
 | `THALEIA_CLAUDE_BIN` | `claude` | LLM 用 claude CLI (Windows は git-bash wrapper を差せる) |
 | `THALEIA_RANK_TOP_K` | `40` | ランキング後に残す上限件数 |
+| `THALEIA_LINK_CONFIDENCE_THRESHOLD` | `0.7` | spec-link ワークリストで「低 confidence」とみなす閾値 (この値未満を要レビュー)。 0..1 外/不正値は既定に倒す |
 
 ## 完了済 (主要機能)
 
@@ -62,11 +63,12 @@ AIFormat の分類フォルダに揃える (`data` / `feature` / `interface` / `
 - MUSA リレー `/relay/anatomia` + LLM 意味ランキング (opt-in)。
 - 突合履歴の差分 (前回比 diff)。
 - 関数粒度トレース `/api/trace` (spec-links を関数へ join)。
+- spec 単位トレース `/api/trace/spec` (Pf spec → target ドメインの実装関数を直結。 viewer の仕様カバレッジ行「関数 ▾」)。
+- 未批准 spec-link ワークリスト `/api/links/worklist` (ratified:false / 低 confidence を要レビューで列挙。 閾値 `THALEIA_LINK_CONFIDENCE_THRESHOLD` 既定 0.7。 viewer に専用セクション)。
 - 意味照合 (opt-in、字面で外れた未対応を `claude -p` で対応付け = 真 embedding の代替)。
 - 実環境フル E2E 通済 (studio anatomia-link / scene / diff / trace / semantic を実 Pf+An で確認)。
 
 ## 次フェーズ
 
-- Pf spec → target ドメインの実装関数を直接ぶら下げる (trace の spec 単位化)。
-- spec-link confidence/ratified を使った「未批准リンク」ワークリスト。
 - Praeforma フロントが `?tab/focus` クエリを消費して個別エンティティへ着地 (deeplink は対応済)。
+- spec-link ワークリストから直接 Anatomia の批准 UI へディープリンク (現状は表示のみ)。

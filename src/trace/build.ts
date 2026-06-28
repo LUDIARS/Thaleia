@@ -5,7 +5,7 @@
 
 import { normalizeName } from '../reconcile/match.ts';
 import type { AnatomiaGraph } from '../relay/types.ts';
-import type { AnatomiaSpecLink, TraceFunction, TraceResult } from './types.ts';
+import type { AnatomiaSpecLink, SpecTraceResult, TraceFunction, TraceResult } from './types.ts';
 
 /** 返す関数の上限 (大ドメインで全量返さない。 超過は summary に明示)。 */
 export const MAX_TRACE_FUNCTIONS = 200;
@@ -98,6 +98,60 @@ export function buildTrace(params: BuildTraceParams): TraceResult {
       linkedFunctions: kept.filter((f) => f.specLinks.length > 0).length,
       truncated,
       totalImplementors,
+    },
+  };
+}
+
+export interface BuildSpecTraceParams {
+  specCode: string;
+  specTitle: string;
+  /** Pf 側で id→name 解決済の target ドメイン名群。 */
+  targetDomains: string[];
+  /** ドメイン名 → 実装 anchor id 群 (Anatomia domain-view より)。 */
+  implementorsByDomain: Record<string, string[]>;
+  graph: AnatomiaGraph;
+  specLinks: AnatomiaSpecLink[];
+  maxFunctions?: number;
+}
+
+/**
+ * Pf spec → target ドメイン群 → 実装関数 + spec-links を直結する (spec 起点のトレース)。
+ *
+ * 既存の buildTrace (ドメイン単位) を target ドメインごとに適用して束ねる純粋関数。
+ * ドメイン単位の挙動はそのまま再利用するので、 spec 起点でも join ロジックは一致する。
+ */
+export function buildSpecTrace(params: BuildSpecTraceParams): SpecTraceResult {
+  const { specCode, specTitle, targetDomains, implementorsByDomain, graph, specLinks } = params;
+  // target ドメインの重複は正規化名で除く (Pf 側の表記ゆれで二重に来る場合に備える)。
+  const seen = new Set<string>();
+  const uniqueTargets: string[] = [];
+  for (const d of targetDomains) {
+    const k = normalizeName(d);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    uniqueTargets.push(d);
+  }
+
+  const domains = uniqueTargets.map((domain) =>
+    buildTrace({
+      domain,
+      implementorsByDomain,
+      graph,
+      specLinks,
+      maxFunctions: params.maxFunctions,
+    }),
+  );
+
+  return {
+    specCode,
+    specTitle,
+    targetDomains: uniqueTargets,
+    domains,
+    summary: {
+      domainCount: uniqueTargets.length,
+      matchedDomains: domains.filter((d) => d.matched).length,
+      functionCount: domains.reduce((n, d) => n + d.summary.functionCount, 0),
+      linkedFunctions: domains.reduce((n, d) => n + d.summary.linkedFunctions, 0),
     },
   };
 }

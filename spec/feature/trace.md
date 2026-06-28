@@ -33,7 +33,22 @@ Anatomia の 3 ビューを並列取得 (`engine`):
 - 対象ドメインが検出ドメインに無い → `matched:false` + 空 (ダミー関数を捏造しない)。
 - 上限切り詰めは `summary.truncated` + `totalImplementors` で明示 (黙って削らない)。
 
+## spec 単位トレース (`/api/trace/spec`)
+
+ドメイン単位のドリルダウンに加え、**Pf spec を起点**に target ドメインの実装関数を直結する
+(`buildSpecTrace()` 純粋 + `runSpecTrace()` I/O)。
+
+`runSpecTrace()` (engine):
+1. `pf.listSpecs` で spec code → spec を引く (無ければ `null` → route 404)。
+2. `pf.getSpecTargets` + `pf.listDomains` で target の `kind==="domain"` を id→name 解決。
+3. Anatomia の 3 ビュー (domain-view / graph / spec-links) を並列取得。
+
+`buildSpecTrace()` (純粋):
+- target ドメインの重複を正規化名で畳み、各 target に `buildTrace()` を適用して束ねる
+  (ドメイン単位の join ロジックをそのまま再利用 = 挙動一致)。
+- `summary` は target 全体の `domainCount / matchedDomains / functionCount / linkedFunctions`。
+- 未検出 target は `matched:false` の TraceResult 要素として残す (黙って捨てない)。
+
 ## 次フェーズ
 
-- Pf spec → target ドメインの実装関数を直接ぶら下げる (現状はドメイン単位のドリルダウン)。
-- spec-link confidence/ratified を使った「未批准リンク」ワークリスト。
+- spec 単位トレースから関数 → repo spec 節の重み付き経路 (confidence) を強調表示。
