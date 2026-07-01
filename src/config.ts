@@ -31,12 +31,14 @@ export interface ThaleiaConfig {
 export function loadConfig(): ThaleiaConfig {
   return {
     port: Number(process.env.THALEIA_PORT ?? 8890),
-    praeformaBaseUrl: process.env.PRAEFORMA_BASE_URL ?? null,
+    praeformaBaseUrl: firstEnv('PRAEFORMA_BASE_URL', 'PRAEFORMA_API_URL', 'PRAEFORMA_URL'),
     praeformaToken: process.env.PRAEFORMA_TOKEN ?? null,
-    anatomiaBaseUrl: process.env.ANATOMIA_BASE_URL ?? null,
-    praeformaWebUrl: process.env.PRAEFORMA_WEB_URL ?? null,
+    anatomiaBaseUrl: firstEnv('ANATOMIA_BASE_URL', 'ANATOMIA_API_URL', 'ANATOMIA_URL'),
+    praeformaWebUrl: firstEnv('PRAEFORMA_WEB_URL'),
     // Anatomia は web server 自身が UI も兼ねるので、 専用 URL 未設定なら API base を流用。
-    anatomiaWebUrl: process.env.ANATOMIA_WEB_URL ?? process.env.ANATOMIA_BASE_URL ?? null,
+    anatomiaWebUrl:
+      firstEnv('ANATOMIA_WEB_URL') ??
+      firstEnv('ANATOMIA_BASE_URL', 'ANATOMIA_API_URL', 'ANATOMIA_URL'),
     llmRank: process.env.THALEIA_LLM_RANK === '1',
     claudeBin: process.env.THALEIA_CLAUDE_BIN ?? 'claude',
     rankTopK: Number(process.env.THALEIA_RANK_TOP_K ?? 40),
@@ -46,6 +48,14 @@ export function loadConfig(): ThaleiaConfig {
 }
 
 /** 0..1 の閾値を解釈。 未設定/不正値は既定 0.7。 */
+function firstEnv(...keys: string[]): string | null {
+  for (const key of keys) {
+    const value = process.env[key]?.trim();
+    if (value) return value;
+  }
+  return null;
+}
+
 function parseThreshold(raw: string | undefined): number {
   const n = Number(raw);
   if (raw === undefined || raw === '' || !Number.isFinite(n) || n < 0 || n > 1) return 0.7;

@@ -12,6 +12,7 @@ import { mountRelayRoutes } from './routes/relay.ts';
 import { mountTraceRoutes } from './routes/trace.ts';
 import { mountLinksRoutes } from './routes/links.ts';
 import { mountApiRoutes } from './routes/api.ts';
+import { mountUnifiedRoutes } from './routes/unified.ts';
 
 const config = loadConfig();
 const dataDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'data');
@@ -34,6 +35,7 @@ mountReconcileRoutes(app, config, store);
 mountRelayRoutes(app, config);
 mountTraceRoutes(app, config);
 mountLinksRoutes(app, config);
+mountUnifiedRoutes(app, config);
 mountApiRoutes(app, config, store);
 
 serve({ fetch: app.fetch, port: config.port }, (info) => {
