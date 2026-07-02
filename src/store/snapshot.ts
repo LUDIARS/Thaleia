@@ -1,7 +1,7 @@
 // 突合スナップショットの JSON 永続化 (data/<slug>.json)。
 // Thaleia は「統合したデータを持つ」サービスなので、 最新の突合結果を保存して引けるようにする。
 
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ReconcileResult } from '../reconcile/types.ts';
 
@@ -36,24 +36,56 @@ export interface SnapshotStore {
 
 export function makeSnapshotStore(dataDir: string): SnapshotStore {
   const historyDir = (label: string) => join(dataDir, 'history', slug(label));
+  // slug ごとの save 直列化 (軽量 mutex)。 同一 label への並行 POST で
+  // 「既存読み → history 退避 → 上書き」 が交錯して退避が失われるのを防ぐ。
+  const saveChains = new Map<string, Promise<unknown>>();
+  function serializeBySlug<T>(key: string, task: () => Promise<T>): Promise<T> {
+    const prev = saveChains.get(key) ?? Promise.resolve();
+    // 前の save が失敗していても次の save は実行する (エラーは各呼び出し元へ返る)。
+    const run = prev.then(task, task);
+    saveChains.set(key, run.catch(() => undefined));
+    return run;
+  }
+
+  /** 既存の最新を history へ退避する。 破損 JSON は corrupt-<stamp>.json として生バイトを残す。 */
+  async function archivePrevious(file: string, project: string): Promise<void> {
+    let prevRaw: string;
+    try {
+      prevRaw = await readFile(file, 'utf8');
+    } catch (err) {
+      // 真の初回 (ENOENT) のみ退避なしで続行。 それ以外の read 失敗は無言で握り潰さない。
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw err;
+    }
+    const hd = historyDir(project);
+    await mkdir(hd, { recursive: true });
+    let archiveName: string;
+    try {
+      const prev = JSON.parse(prevRaw) as ReconcileResult;
+      archiveName = `${stampToFile(prev.generatedAt ?? 'unknown')}.json`;
+    } catch {
+      // parse 失敗 = 破損。 初回扱いで無退避上書きせず、 生バイトを corrupt として退避して観測可能にする。
+      archiveName = `corrupt-${stampToFile(new Date().toISOString())}.json`;
+      console.warn(
+        `[thaleia:store] 既存スナップショット ${file} の JSON が破損しています。 history へ ${archiveName} として退避して上書きします。`,
+      );
+    }
+    await writeFile(join(hd, archiveName), prevRaw, 'utf8');
+  }
 
   return {
-    async save(result) {
-      await mkdir(dataDir, { recursive: true });
-      const file = join(dataDir, `${slug(result.project)}.json`);
-      // 既存の最新を history へ退避してから上書き (前回比の素材を残す)。
-      try {
-        const prevRaw = await readFile(file, 'utf8');
-        const prev = JSON.parse(prevRaw) as ReconcileResult;
-        const hd = historyDir(result.project);
-        await mkdir(hd, { recursive: true });
-        const stamp = stampToFile(prev.generatedAt ?? 'unknown');
-        await writeFile(join(hd, `${stamp}.json`), prevRaw, 'utf8');
-      } catch {
-        // 既存無し (初回) は退避しない。
-      }
-      await writeFile(file, JSON.stringify(result, null, 2), 'utf8');
-      return file;
+    save(result) {
+      const key = slug(result.project);
+      return serializeBySlug(key, async () => {
+        await mkdir(dataDir, { recursive: true });
+        const file = join(dataDir, `${key}.json`);
+        await archivePrevious(file, result.project);
+        // 原子的置換: 同一ディレクトリに tmp を書いて rename (途中状態の最新ファイルを見せない)。
+        const tmp = join(dataDir, `.${key}.${process.pid}.${Date.now()}-${Math.random().toString(36).slice(2, 8)}.tmp`);
+        await writeFile(tmp, JSON.stringify(result, null, 2), 'utf8');
+        await rename(tmp, file);
+        return file;
+      });
     },
     async load(label) {
       const file = join(dataDir, `${slug(label)}.json`);
@@ -67,7 +99,8 @@ export function makeSnapshotStore(dataDir: string): SnapshotStore {
       const hd = historyDir(label);
       let files: string[];
       try {
-        files = (await readdir(hd)).filter((f) => f.endsWith('.json'));
+        // corrupt-*.json は破損退避なので前回 run としては扱わない。
+        files = (await readdir(hd)).filter((f) => f.endsWith('.json') && !f.startsWith('corrupt-'));
       } catch {
         return null;
       }

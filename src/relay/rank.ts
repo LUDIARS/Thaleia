@@ -36,7 +36,7 @@ export function buildRankPrompt(nodes: RelayResult['nodes'], ctx: RankContext): 
   const kindJa = ctx.target.kind === 'domain' ? 'ドメイン' : 'シーン';
   return [
     'あなたはコードベースの関連処理を選別するアシスタントです。',
-    `対象${kindJa }「${ctx.target.name ?? '(無名)'}」の要件実装に関連する処理を、 候補から選んでください。`,
+    `対象${kindJa}「${ctx.target.name ?? '(無名)'}」の要件実装に関連する処理を、 候補から選んでください。`,
     ctx.target.description ? `対象の概要: ${ctx.target.description}` : '',
     ctx.query ? `検索意図: ${ctx.query}` : '',
     '',
