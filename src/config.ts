@@ -47,7 +47,7 @@ export function loadConfig(): ThaleiaConfig {
   };
 }
 
-/** 0..1 の閾値を解釈。 未設定/不正値は既定 0.7。 */
+/** 指定した環境変数キーを順に見て、 最初に値が入っているものを返す。 */
 function firstEnv(...keys: string[]): string | null {
   for (const key of keys) {
     const value = process.env[key]?.trim();
@@ -56,6 +56,7 @@ function firstEnv(...keys: string[]): string | null {
   return null;
 }
 
+/** 0..1 の閾値を解釈。 未設定/不正値は既定 0.7。 */
 function parseThreshold(raw: string | undefined): number {
   const n = Number(raw);
   if (raw === undefined || raw === '' || !Number.isFinite(n) || n < 0 || n > 1) return 0.7;
