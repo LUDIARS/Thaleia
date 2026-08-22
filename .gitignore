@@ -9,3 +9,6 @@ data/*.json
 data/history/
 !data/.gitkeep
 logs/
+
+# Anatomia のローカル状態 (ドメイン定義の正本は spec/domains/)
+.anatomia/

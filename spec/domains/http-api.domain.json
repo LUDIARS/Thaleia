@@ -1,0 +1,11 @@
+{
+  "name": "http-api",
+  "description": "HTTP の受口。 ルート登録。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)src/routes/(?:.*/)?[^/]+$"
+    }
+  ]
+}

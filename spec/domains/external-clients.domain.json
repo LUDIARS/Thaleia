@@ -1,0 +1,14 @@
+{
+  "name": "external-clients",
+  "description": "外部サービスの呼び出し境界。 Anatomia / Ludus / Praeforma 等との連携。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)src/clients/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)src/relay/(?:.*/)?[^/]+$"
+    }
+  ]
+}

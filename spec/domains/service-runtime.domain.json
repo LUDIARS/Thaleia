@@ -1,0 +1,11 @@
+{
+  "name": "service-runtime",
+  "description": "プロセスとしての Thaleia。 起動と設定。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)src/[^/]+$"
+    }
+  ]
+}

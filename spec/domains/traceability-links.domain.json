@@ -1,0 +1,17 @@
+{
+  "name": "traceability-links",
+  "description": "企画と実装の対応づけ。 spec とコードのリンク生成と保持、 追跡ビュー。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)src/links/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)src/trace/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)src/unified/(?:.*/)?[^/]+$"
+    }
+  ]
+}

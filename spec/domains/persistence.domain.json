@@ -1,0 +1,11 @@
+{
+  "name": "persistence",
+  "description": "永続化。 保存先とスキーマ。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)src/store/(?:.*/)?[^/]+$"
+    }
+  ]
+}

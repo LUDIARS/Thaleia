@@ -40,6 +40,8 @@ AIFormat の分類フォルダに揃える (`data` / `feature` / `interface` / `
 - `spec/thaleia.md` — 全体設計
 - `spec/feature/reconcile.md` — 突合アルゴリズム
 - `spec/interface/api.md` — REST + 上流クライアント契約
+- `spec/domains/*.domain.json` — コードドメイン定義の**正本** (Anatomia が読む。
+  ローカル `.anatomia/` はキャッシュなので git 管理しない)
 
 ## env
 

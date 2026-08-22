@@ -1,0 +1,11 @@
+{
+  "name": "llm-assist",
+  "description": "LLM 支援。 対応づけの候補生成と要約。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)src/llm/(?:.*/)?[^/]+$"
+    }
+  ]
+}

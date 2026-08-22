@@ -1,0 +1,11 @@
+{
+  "name": "ux-surface",
+  "description": "利用者向けの表示。 追跡結果の見せ方。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)src/routes/(?:unified-)?viewer\\.ts$"
+    }
+  ]
+}
