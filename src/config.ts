@@ -23,6 +23,11 @@ export const DEFAULT_PERSONA_WEIGHTS = { opinion: 0.4, consensus: 0.4, traitFit:
 
 export interface ThaleiaConfig {
   port: number;
+  /**
+   * 施策と評価の保存先。 未設定ならリポジトリ同梱の `data/`。
+   * ランチャー (Curia 等) から起動するときは実行時データをリポジトリ外へ逃がすために指定する。
+   */
+  dataDir: string | null;
   /** Anatomia (コード解析) の web server base URL。 例 http://localhost:4200 */
   anatomiaBaseUrl: string | null;
   /** Discutere (議論) の base URL。 例 http://localhost:3110 */
@@ -66,6 +71,7 @@ export interface ThaleiaConfig {
 export function loadConfig(): ThaleiaConfig {
   return {
     port: Number(process.env.THALEIA_PORT ?? 8890),
+    dataDir: firstEnv('THALEIA_DATA_DIR'),
     anatomiaBaseUrl: firstEnv('ANATOMIA_BASE_URL', 'ANATOMIA_API_URL', 'ANATOMIA_URL'),
     discutereBaseUrl: firstEnv('DISCUTERE_BASE_URL', 'DISCUTERE_URL'),
     discutereUserId: firstEnv('DISCUTERE_ADMIN_USER_ID'),

@@ -93,6 +93,20 @@ confidence = Π_axis confidence_axis × 種別ルール confidence
 重み・閾値・凡庸性係数は env で上書きできる (`THALEIA_WEIGHT_*` / `THALEIA_DEFER_THRESHOLD` /
 `THALEIA_BANALITY_K`)。重みは 1 本でも上書きすると全体を正規化して合計 1 に保つ。
 
+## 設定 (env)
+
+| 変数 | 既定 | 用途 |
+|---|---|---|
+| `THALEIA_PORT` | 8890 | HTTP bind (127.0.0.1 固定) |
+| `THALEIA_DATA_DIR` | リポジトリ同梱の `data/` | 施策と評価の保存先。ランチャー (Curia) 配下で動かすときに userData を指す |
+| `ANATOMIA_BASE_URL` (別名 `ANATOMIA_API_URL` / `ANATOMIA_URL`) | なし | コード解析。未設定ならコスト軸 / ドメイン解析軸が missing |
+| `DISCUTERE_BASE_URL` (別名 `DISCUTERE_URL`) / `DISCUTERE_ADMIN_USER_ID` | なし | ペルソナ議論。未設定なら Di 軸が missing |
+| `PRAEFORMA_BASE_URL` (別名 `PRAEFORMA_API_URL` / `PRAEFORMA_URL`) / `PRAEFORMA_TOKEN` | なし | 人間の仕様。未設定なら spec 起点トレースが引けない |
+| `GENIUS_BASE_URL` / `AUGUR_BIN` / `LUDUS_REPO_DIR` | なし | 判断カード / テスト計画 / ゲーム辞書 |
+
+未設定の上流は **mock に落とさず該当軸を missing にする** (無言フォールバック禁止)。
+`THALEIA_DATA_DIR` を指定しても単体起動の既定 (リポジトリ同梱 `data/`) は変わらない。
+
 ## 残置している機能
 
 | 機能 | 経路 | 理由 |

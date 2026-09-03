@@ -18,7 +18,9 @@ import { mountUnifiedRoutes } from './routes/unified.ts';
 import { mountViewerRoutes } from './routes/viewer.ts';
 
 const config = loadConfig();
-const dataDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'data');
+// 実行時データの置き場所。 THALEIA_DATA_DIR があればそちら (ランチャー配下の userData 等)、
+// 無ければリポジトリ同梱の data/。 単体起動の挙動は従来どおり。
+const dataDir = config.dataDir ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'data');
 const store = makeInitiativeStore(dataDir);
 
 const app = new Hono();
@@ -52,6 +54,8 @@ app.get('/health', (c) =>
     genius: Boolean(config.geniusBaseUrl),
     ludus: Boolean(config.ludusRepoDir),
     praeforma: Boolean(config.praeformaBaseUrl),
+    // 絶対パスはユーザー名やローカル構成を漏らし得るため、設定元だけを公開する。
+    dataDirSource: config.dataDir === null ? 'default' : 'configured',
   }),
 );
 

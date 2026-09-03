@@ -6,6 +6,9 @@
   "membership": [
     {
       "pathPattern": "(^|/)src/[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)src/__tests__/(?:.*/)?[^/]+$"
     }
   ]
 }
