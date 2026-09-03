@@ -1,0 +1,11 @@
+{
+  "name": "risk-rules",
+  "description": "施策種別ごとのリスクルール。 new-content の凡庸性ペナルティと improvement の見送り判定。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)src/rules/(?:.*/)?[^/]+$"
+    }
+  ]
+}

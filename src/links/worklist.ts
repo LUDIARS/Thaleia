@@ -6,7 +6,7 @@
 // のいずれかに該当するリンクを「要レビュー」として集め、 棚卸し用に並べ替える。
 // graph があれば from(anchor id もしくはファイルパス) を関数名/ファイルに解決して表示を補う。
 
-import type { AnatomiaGraph } from '../relay/types.ts';
+import type { AnatomiaGraph } from '../clients/anatomia-types.ts';
 import type { AnatomiaSpecLink } from '../trace/types.ts';
 
 /** ワークリストが既定で返すリンクの上限。 */

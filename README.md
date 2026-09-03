@@ -1,83 +1,92 @@
 # Thaleia
 
-MUSA「9 人の女神」の **タレイア** — 企画↔実装トレーサビリティ。
-**Praeforma(人間の仕様概念)** と **Anatomia(コード解析 / LLM データキャッシュ)** の
-**両方と会話してデータを統合する単独サービス**。略称: `Th`(予定)。
+MUSA「9 人の女神」の **タレイア** — **施策設計ツール (成否リスクのスコア化)**。略称: `Th`。
 
-> フレーミング: Anatomia は機械向けの解析情報、Praeforma は人間が理解する仕様概念。
-> Thaleia はその間に立ち、**ドメインと仕様書を突合**してトレーサビリティを出す。
+企画 (施策) を入れると、**UX / 実装コスト / AI 実装可否 / ドメイン解析 / Di 議論** の 5 軸で
+成否リスクを採点し、根拠 (evidence) と欠損 (missing) と判定 (verdict) を返す評価専用サービス。
 
-## v1: ドメイン↔仕様書の突合
+> 正本設計: Castra `spec/plan/2026-09-03-thaleia-initiative-design-tool.md` (2026-09-03 neco 承認済)。
+> 旧 Thaleia の役割 (Praeforma × Anatomia の突合) は撤去した。突合の正本は Anatomia にある。
+> 関数粒度トレース (`/api/trace`) だけは Anatomia に同等物が無いので残置している。
 
-`POST /reconcile` で Praeforma の (ドメイン定義 + 仕様書) と Anatomia の (検出ドメイン) を
-取得し、次を出す:
+## 何をするか
 
-- **ドメイン突合**: 仕様(人間) ↔ 実装(機械) の対応。表記ゆれ(`Player`↔`player`)も名寄せ。
-  `THALEIA_SEMANTIC_MATCH=1` で字面で外れた概念 (状態機械↔state-machine) も `claude -p` で意味照合。
-- **シーン(layout)突合**: Praeforma の layout(=scene) ↔ Anatomia の検出スクリーンを同じ名寄せで対応。
-- **仕様カバレッジ**: 各仕様が実装されているか (target ドメイン/シーンに実装コードがあるか)。
-- **両方向ギャップ**: 実装の無い仕様 (未実装) / 仕様の無い実装ドメイン・スクリーン (仕様欠落)。
+```
+POST /api/initiatives            企画を登録する
+POST /api/initiatives/:id/evaluate   5 軸で採点する
+GET  /                           結果を見る (レーダー / 四象限 / 減点理由 / 根拠リンク)
+```
 
-結果は `data/<label>.json` に保存し、`GET /reconcile?project=<label>` で引ける。
-保存時に直前の最新は `data/history/<slug>/` へ退避し、`POST /reconcile` 応答と
-`GET /api/snapshots/:label` に**前回比 (`diff`)** を付ける (実装が付いた/退行した仕様・
-ドメイン/シーンの出入り・状態変化を一目で出す。初回は `hasPrevious:false`)。
+Thaleia は **解析も議論もテスト計画も判断基準も持たない**。既に在るサービスを呼ぶだけ:
 
-## MUSA リレー (`POST /relay/anatomia`)
+| 上流 | 引くもの |
+|---|---|
+| Anatomia (`An`) | 検出ドメイン / モジュール / entrypoint-graph / hotspots / 二層ドメインビュー / spec-links / scenes / screens / 整理提案 |
+| Discutere (`Di`) | ペルソナ別の議論集計、施策からの議論起票、既存パターン (mechanics / aesthetics) |
+| Augur (`Ag`) | `review-plan` (この変更に要る検査) / `tests list` (回帰テストの登録状況) |
+| Genius | 判断カード (過去に同種の施策をどう裁いたか) |
+| Ludus (`Lu`) | game-lexicon (凡庸性の参照先。Web サービスではないのでファイルを読む) |
 
-Praeforma の要件定義モード (studio) が「対象 (ドメイン/シーン) に関連する処理グラフ」を
-Anatomia から引く受け口。**Praeforma → Thaleia → Anatomia の一方向**で、Anatomia の
-コードグラフ (`/api/graph`) を対象ドメインの実装 + 検索語で絞り込み、Praeforma の
-code-graph スキーマ (`nodes{key,label,type,anatomia_ref}` / `edges{from,to,relation}`) へ
-正規化して返す。Thaleia は解析を二重実装しない。詳細 → [spec/feature/relay.md](spec/feature/relay.md)。
+## 評価軸
 
-## 突合ビューア (`GET /`)
+| 軸 | 重み | 何を見るか |
+|---|---|---|
+| UX | 0.25 | 導線の一貫性 / 学習コスト / 既存 UX との整合 / 体験の意図の言語化 |
+| 実装コスト | 0.15 | 触るドメインの変更面積を対数で写す。**日数・金額は出さない** |
+| AI 実装可否 | 0.20 | 仕様の具体性 / spec-link 密度 / テスト充足率 / 過去判断 |
+| ドメイン解析 | 0.15 | 二層 (業務/プログラム) 整合と未返済の整理提案 |
+| Di 議論 | 0.25 | ペルソナ別の内部スコアと単独合否 (四象限で可視化) |
 
-Thaleia の UI は「突合差分」そのものが中身で、仕様編集も解析も持たない (= 役割の二重実装を
-しない)。スナップショット一覧 → 突合マトリクス / 仕様カバレッジ / ギャップ・ワークリストを
-表示し、各行から各サービスへ**ディープリンク**で送り出す:
+**上流が取れない軸は 0 点にせず `missing` に理由を積み、総合 confidence を落とす**
+(無言フォールバック禁止)。confidence が 0.5 未満ならビューアが「判定保留」と出す。
 
-- **実装欠落 (spec-only)** → Praeforma で仕様を開く
-- **仕様欠落 (code-only)** → Anatomia で実装を見る
-- **表記ゆれ / 一致** → 両側へ
+### 種別ごとの特殊ルール
 
-リンク先は `PRAEFORMA_WEB_URL` / `ANATOMIA_WEB_URL`。未設定なら誤ったホストへ飛ばさず
-無効表示にする。SPA はビルド不要で `routes/api.ts` の `/api/*` (config / snapshots /
-snapshots/:label) を読む。
+- **new-content**: 既存パターン (Ludus lexicon + Di mechanics/aesthetics) との重なりが大きいほど
+  **凡庸性ペナルティ**で総合点を引く。1 件も当たらなければペナルティ 0
+- **improvement**: `fan-in × hotspot 度 × (1 − 回帰テスト充足率) × 二層不整合` でデグレード危険度を出し、
+  0.7 以上なら **他の軸がどれだけ良くても `defer` (見送り)**。「先に返済」リストを添える
 
-## 関数粒度トレース (`GET /api/trace`)
+## ビューア (`GET /`)
 
-ビューアの実装ありドメイン行の「関数 ▾」で、そのドメインを実装する**関数**を列挙し、
-各関数に Anatomia の spec-links (コード↔リポ spec 節) を結びつけて表示する
-(企画↔実装トレーサビリティの関数粒度)。詳細 → [spec/feature/trace.md](spec/feature/trace.md)。
+ビルド不要の SPA。施策一覧 (verdict と total の推移) → 詳細 (5 軸レーダー / 総合 / verdict /
+減点理由) → **Di 四象限散布** (点 = ペルソナ、サイズ = 内部スコア、色 = 単独合否。点をクリックすると
+opinion / consensus / traitFit / 閾値の内訳と発話が出る) → improvement のデグレード内訳 →
+evidence から Anatomia / Discutere / Genius へのディープリンク。
 
 ## 構成
 
 ```
 src/
 ├── index.ts            Hono server entry (port 8890)
-├── config.ts           env (PRAEFORMA_/ANATOMIA_ BASE_URL/TOKEN/WEB_URL, THALEIA_LLM_RANK 他)
-├── clients/            上流クライアント (praeforma / anatomia)
-├── reconcile/          突合: types / match(純粋) / diff(純粋) / engine(I/O)
-├── relay/              MUSA リレー: types / select(純粋) / rank(LLM) / engine(I/O)
-├── trace/              関数粒度トレース: types / build(純粋) / engine(I/O)
-├── llm/                claude -p spawn (relay ランキング用)
-├── links/              deeplink(純粋): 行→各サービスへの URL 生成
-├── routes/             /reconcile + /relay/anatomia + /api/trace + /api/* + 突合ビューア
-└── store/              data/*.json スナップショット + history (save/load/loadPrevious/list)
+├── config.ts           env (上流 URL / 重み / 閾値 / claude モデル)
+├── clients/            anatomia / discutere / augur / genius / ludus / praeforma
+├── initiative/         施策と評価の型 + 永続化 (data/initiatives/)
+├── evaluators/         5 軸 (各 純粋関数 + engine) + pipeline / project-facts / targets
+├── rules/              banality (new-content) / defer (improvement)
+├── aggregate/          total / verdict / confidence (すべて純粋)
+├── text/               名寄せ・語彙正規化 (純粋)
+├── trace/ links/ unified/  残置機能 (関数粒度トレース / spec-link 棚卸し / 統合ビュー)
+├── llm/                claude -p spawn (--model 固定)
+├── routes/             /api/initiatives / trace / links / unified / ビューア
+└── store/              JSON 永続化 (最新 + history)
 ```
+
+純粋関数は fixture で決定的にテストする。**LLM を呼ぶのは engine 層だけ**。
 
 ## 起動
 
 ```sh
 npm install
-PRAEFORMA_BASE_URL=http://localhost:8889 PRAEFORMA_TOKEN=<service token> \
 ANATOMIA_BASE_URL=http://localhost:4200 \
+DISCUTERE_BASE_URL=http://localhost:3110 \
+GENIUS_BASE_URL=http://localhost:4230 \
+AUGUR_BIN=C:/path/to/Augur/bin/augur.mjs \
+LUDUS_REPO_DIR=C:/path/to/Ludus \
   npm start            # tsx src/index.ts (port 8890)
 ```
 
-事前に Praeforma(8889) と `anatomia web --port 4200` を起動し、解析対象を
-Anatomia に `project add <id> <repo>` 登録しておく。
+上流は未設定でも起動する (`/health` は返る)。未設定の上流に依存する軸は `missing` になる。
 
 ## 開発
 
@@ -90,6 +99,9 @@ npm test            # vitest run
 
 ## 関係
 
-- **Praeforma** (`Pf`) — 人間の仕様/ドメイン/要件。`/api/projects/:pid/domains`, `/specs`
-- **Anatomia** (`An`) — コード解析の検出ドメイン。`/api/domains?project=`
-- **MUSA** — 9 女神計画。Thaleia はその最初の実装サービス。
+- **Anatomia** (`An`) — コード解析。突合の正本でもある
+- **Discutere** (`Di`) — ペルソナ議論。Thaleia 向けの persona 集計 API を持つ
+- **Augur** (`Ag`) — テスト計画。常駐しない CLI
+- **Genius** — neco の判断カード
+- **Ludus** (`Lu`) — ゲーム辞書
+- **MUSA** — 9 女神計画。Thaleia はその最初の実装サービス

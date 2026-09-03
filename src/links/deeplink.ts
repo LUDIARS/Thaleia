@@ -35,6 +35,19 @@ function trimSlash(u: string): string {
   return u.replace(/\/+$/, '');
 }
 
+/** HTML の href に出せる HTTP(S) URL だけを受け付ける。 */
+function safeWebBase(webUrl: string | null): string | null {
+  if (!webUrl) return null;
+  try {
+    const parsed = new URL(webUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    if (parsed.username || parsed.password) return null;
+    return trimSlash(webUrl);
+  } catch {
+    return null;
+  }
+}
+
 /** Praeforma のプロジェクトページを tab + focus 付きで開く (ProjectShowPage、`/projects/:pid`)。 */
 function praeformaTabUrl(
   webUrl: string | null,
@@ -42,16 +55,18 @@ function praeformaTabUrl(
   tab: 'domains' | 'specs' | 'layouts',
   focus: string,
 ): string | null {
-  if (!webUrl || !pfProjectId) return null;
+  const base = safeWebBase(webUrl);
+  if (!base || !pfProjectId) return null;
   const q = `tab=${encodeURIComponent(tab)}&focus=${encodeURIComponent(focus)}`;
-  return `${trimSlash(webUrl)}/projects/${encodeURIComponent(pfProjectId)}?${q}`;
+  return `${base}/projects/${encodeURIComponent(pfProjectId)}?${q}`;
 }
 
 /** Anatomia 管理パネル (`/`) を project + focus 付きで開く。 */
 function anatomiaFocusUrl(webUrl: string | null, anatomiaProject: string, focus: string): string | null {
-  if (!webUrl || !anatomiaProject) return null;
+  const base = safeWebBase(webUrl);
+  if (!base || !anatomiaProject) return null;
   const q = `project=${encodeURIComponent(anatomiaProject)}&focus=${encodeURIComponent(focus)}`;
-  return `${trimSlash(webUrl)}/?${q}`;
+  return `${base}/?${q}`;
 }
 
 /** Praeforma の該当ドメイン (domains タブ) を開く URL。 */
@@ -107,4 +122,37 @@ export function sceneRowLinks(
       ? anatomiaScreenUrl(targets.anatomiaWebUrl, anatomiaProject, row.anatomiaScreen)
       : null,
   };
+}
+
+// ── 評価 evidence から上流 UI へ (施策設計ツールの追加分) ──────────────────────
+//   Discutere: src/api/consensus-routes.ts の `GET /api/admin/consensus` が管制ページ。
+//     gap は同ページのドロップダウンで選ぶので `?gap=` を付ける (ページが未消費でも着地はする)。
+//   Augur: 常駐しない CLI なので UI は無い。 リンクは張らず evidence の本文だけを出す。
+//   Genius: 判断カードの UI は clone ビュー。 `?card=` でカードを指す。
+
+/** Discutere の合意スコア管制ページを gap 付きで開く。 */
+export function discutereGapUrl(webUrl: string | null, gapId: string): string | null {
+  const base = safeWebBase(webUrl);
+  if (!base || !gapId) return null;
+  return `${base}/api/admin/consensus?gap=${encodeURIComponent(gapId)}`;
+}
+
+/** Discutere の学習ビュー (既存パターンの出どころ) を開く。 */
+export function discutereLearningUrl(webUrl: string | null): string | null {
+  const base = safeWebBase(webUrl);
+  return base ? `${base}/learning` : null;
+}
+
+/** Genius の判断カードを開く。 */
+export function geniusCardUrl(webUrl: string | null, cardId: string): string | null {
+  const base = safeWebBase(webUrl);
+  if (!base || !cardId) return null;
+  return `${base}/?card=${encodeURIComponent(cardId)}`;
+}
+
+/** Anatomia のプロジェクトを開く (ドメイン指定なし)。 */
+export function anatomiaProjectUrl(webUrl: string | null, anatomiaProject: string): string | null {
+  const base = safeWebBase(webUrl);
+  if (!base || !anatomiaProject) return null;
+  return `${base}/?project=${encodeURIComponent(anatomiaProject)}`;
 }

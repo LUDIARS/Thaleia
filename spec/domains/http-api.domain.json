@@ -5,6 +5,9 @@
   "templateRules": [],
   "membership": [
     {
+      "pathPattern": "(^|/)src/index\\.ts$"
+    },
+    {
       "pathPattern": "(^|/)src/routes/(?:.*/)?[^/]+$"
     }
   ]

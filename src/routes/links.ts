@@ -30,8 +30,8 @@ export function mountLinksRoutes(app: Hono, config: ThaleiaConfig): void {
     try {
       const result = await runLinkWorklist(an, { project, confidenceThreshold, maxItems });
       return c.json(result);
-    } catch (e) {
-      return c.json({ error: 'upstream_failed', detail: String(e) }, 502);
+    } catch {
+      return c.json({ error: 'upstream_failed' }, 502);
     }
   });
 }

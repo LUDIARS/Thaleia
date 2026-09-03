@@ -22,35 +22,44 @@ export class LlmError extends Error {
 /** claude CLI を non-interactive (`-p`) で叩き stdout を返す。 プロンプトは stdin 経由。 */
 export type ClaudeRunner = (prompt: string) => Promise<string>;
 
-/** 既定の claude runner を作る (bin / timeout を束ねる)。 */
-export function makeClaudeRunner(bin: string, timeoutMs = DEFAULT_TIMEOUT_MS): ClaudeRunner {
+/**
+ * 既定の claude runner を作る (bin / model / timeout を束ねる)。
+ *
+ * `--model` は必ず固定する。 既定モデル任せにすると上限切れの巻き添えで無言終了し、
+ * 「LLM が動いていない」ことに気づけない (LUDIARS 運用則)。
+ */
+export function makeClaudeRunner(
+  bin: string,
+  model: string,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+): ClaudeRunner {
   return (prompt) =>
     new Promise<string>((resolve, reject) => {
       let child;
       try {
-        child = spawn(bin, ['-p'], { stdio: ['pipe', 'pipe', 'pipe'] });
-      } catch (e) {
-        reject(new LlmError('llm_spawn_failed', String(e)));
+        child = spawn(bin, ['-p', '--model', model], { stdio: ['pipe', 'pipe', 'pipe'] });
+      } catch {
+        reject(new LlmError('llm_spawn_failed', 'claude CLI の spawn に失敗した'));
         return;
       }
       let out = '';
-      let err = '';
       const timer = setTimeout(() => {
         child.kill('SIGKILL');
         reject(new LlmError('llm_timeout', `timeout ${timeoutMs}ms`));
       }, timeoutMs);
 
       child.stdout.on('data', (d) => (out += String(d)));
-      child.stderr.on('data', (d) => (err += String(d)));
-      child.on('error', (e) => {
+      // stderr はローカル設定や診断を含み得るため、評価結果へ保存しない。
+      child.stderr.resume();
+      child.on('error', () => {
         clearTimeout(timer);
         // ENOENT 等。 ここで構造選択に黙って落とさない (無言 fallback 禁止)。
-        reject(new LlmError('llm_unavailable', `${bin}: ${String(e)}`));
+        reject(new LlmError('llm_unavailable', 'claude CLI を起動できない'));
       });
       child.on('close', (code) => {
         clearTimeout(timer);
         if (code !== 0) {
-          reject(new LlmError('llm_failed', `exit ${code}: ${err.slice(0, 2000)}`));
+          reject(new LlmError('llm_failed', `claude CLI が exit ${code} で終了した`));
           return;
         }
         resolve(out);
@@ -67,14 +76,14 @@ export function extractJson<T>(text: string): T {
   const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
   const body = fence?.[1] ?? trimmed;
   const start = body.search(/[[{]/);
-  if (start < 0) throw new LlmError('llm_failed', `no JSON: ${trimmed.slice(0, 300)}`);
+  if (start < 0) throw new LlmError('llm_failed', 'LLM 応答に JSON が無い');
   const open = body[start];
   const close = open === '{' ? '}' : ']';
   const end = body.lastIndexOf(close);
-  if (end <= start) throw new LlmError('llm_failed', `no JSON close: ${trimmed.slice(0, 300)}`);
+  if (end <= start) throw new LlmError('llm_failed', 'LLM 応答の JSON が閉じていない');
   try {
     return JSON.parse(body.slice(start, end + 1)) as T;
-  } catch (e) {
-    throw new LlmError('llm_failed', `bad JSON: ${String(e)}`);
+  } catch {
+    throw new LlmError('llm_failed', 'LLM 応答の JSON を解析できない');
   }
 }

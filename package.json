@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "MUSA Thaleia — 企画↔実装トレーサビリティ。Praeforma(人間の仕様) と Anatomia(コード解析) を突合する単独サービス。",
+  "description": "MUSA Thaleia — 施策を5軸で採点し、成否リスクと根拠を示す評価サービス。",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",

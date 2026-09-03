@@ -24,6 +24,12 @@ describe('praeformaDomainUrl', () => {
   it('returns null when project id is empty', () => {
     expect(praeformaDomainUrl('http://x', '', 'A')).toBeNull();
   });
+  it('rejects non-HTTP link schemes', () => {
+    expect(praeformaDomainUrl('javascript:alert(1)', 'p1', 'A')).toBeNull();
+  });
+  it('does not expose credentials embedded in a web URL', () => {
+    expect(praeformaDomainUrl('https://user:secret@example.test', 'p1', 'A')).toBeNull();
+  });
 });
 
 describe('praeformaSpecUrl', () => {

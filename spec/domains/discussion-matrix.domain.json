@@ -1,0 +1,11 @@
+{
+  "name": "discussion-matrix",
+  "description": "Di 議論の四象限マトリクスとペルソナ内部スコア。 発話の 2 軸写像、 単独合否、 軸スコアの加点減点。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)src/evaluators/discussion/(?:.*/)?[^/]+$"
+    }
+  ]
+}

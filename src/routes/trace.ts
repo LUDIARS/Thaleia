@@ -30,8 +30,8 @@ export function mountTraceRoutes(app: Hono, config: ThaleiaConfig): void {
     try {
       const result = await runTrace(an, { project, domain, maxFunctions });
       return c.json(result);
-    } catch (e) {
-      return c.json({ error: 'upstream_failed', detail: String(e) }, 502);
+    } catch {
+      return c.json({ error: 'upstream_failed' }, 502);
     }
   });
 
@@ -56,8 +56,8 @@ export function mountTraceRoutes(app: Hono, config: ThaleiaConfig): void {
       const result = await runSpecTrace(pf, an, { pfProject, anatomiaProject, specCode: spec, maxFunctions });
       if (!result) return c.json({ error: 'spec_not_found', spec }, 404);
       return c.json(result);
-    } catch (e) {
-      return c.json({ error: 'upstream_failed', detail: String(e) }, 502);
+    } catch {
+      return c.json({ error: 'upstream_failed' }, 502);
     }
   });
 }

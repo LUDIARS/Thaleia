@@ -3,8 +3,8 @@
 // 対象ドメインの実装関数 (anchor id) を graph で名前/パスに解決し、 各関数に spec-links を
 // join する (from===関数id OR from===関数ファイルパス)。 spec 節は confidence 降順。
 
-import { normalizeName } from '../reconcile/match.ts';
-import type { AnatomiaGraph } from '../relay/types.ts';
+import { normalizeName } from '../text/normalize.ts';
+import type { AnatomiaGraph } from '../clients/anatomia-types.ts';
 import type { AnatomiaSpecLink, SpecTraceResult, TraceFunction, TraceResult } from './types.ts';
 
 /** 返す関数の上限 (大ドメインで全量返さない。 超過は summary に明示)。 */

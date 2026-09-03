@@ -4,11 +4,13 @@
 各関数に Anatomia の spec-links (コード↔リポ spec 節リンク) を結びつける。Thaleia は解析を
 二重実装せず、Anatomia の 3 つのビューを合成するだけ。
 
-## なぜ突合に必要か
+## なぜ残置しているか
 
-reconcile は domain/scene 粒度で「実装あり/なし」を出すが、企画↔実装トレーサビリティの
-最終的な価値は「どの**関数**が要件を実装しているか」。spec-links を使って関数とリポ spec 節を
-結ぶことで、Pf 仕様 → target ドメイン → 実装関数 → (各関数の) repo spec 節 まで辿れる。
+Thaleia を施策設計ツールへ再定義したとき、 突合そのものは Anatomia へ寄せて撤去した
+(Castra `spec/plan/2026-09-03-thaleia-initiative-design-tool.md` §1)。 ただし
+**関数 → spec 節の結び表示は Anatomia 側に同等物が無い**ため、 この機能だけは残している
+(設計 §8-5、 neco 決定 2026-09-03)。 施策評価の AI 実装可否軸も、 spec-link 密度という形で
+同じ素材を足場に使う。
 
 ## 処理 (`trace/build.ts` 純粋 + `trace/engine.ts` I/O)
 

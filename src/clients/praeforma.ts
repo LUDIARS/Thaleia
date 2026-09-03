@@ -3,7 +3,8 @@
 // Praeforma は Cernere PASETO 認証。 token は service token を bearer で渡す。
 // 返却は Drizzle raw row (camelCase キー)。 id/name/code/title 等の素直なフィールドのみ使う。
 
-import type { PfDomain, PfLayout } from '../reconcile/types.ts';
+import type { PfDomain, PfLayout } from './praeforma-types.ts';
+import { fetchWithTimeout } from './fetch.ts';
 
 export interface PfSpecRow {
   id: string;
@@ -36,7 +37,7 @@ export function makePraeformaClient(opts: PraeformaClientOptions): PraeformaClie
   async function get<T>(path: string): Promise<T> {
     const headers: Record<string, string> = { accept: 'application/json' };
     if (opts.token) headers.authorization = `Bearer ${opts.token}`;
-    const res = await fetch(`${base}${path}`, { headers });
+    const res = await fetchWithTimeout(`${base}${path}`, { headers });
     if (!res.ok) {
       throw new Error(`praeforma ${path} -> HTTP ${res.status}`);
     }

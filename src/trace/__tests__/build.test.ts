@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildTrace, MAX_TRACE_FUNCTIONS } from '../build.ts';
-import type { AnatomiaGraph } from '../../relay/types.ts';
+import type { AnatomiaGraph } from '../../clients/anatomia-types.ts';
 import type { AnatomiaSpecLink } from '../types.ts';
 
 const graph: AnatomiaGraph = {

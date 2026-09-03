@@ -2,144 +2,140 @@
 
 ## Thaleia REST (port 8890)
 
-### `GET /health`
-`{ ok, service:"thaleia", port, praeforma:bool, anatomia:bool }`。上流設定済かを bool で示す。
+Thaleia は `127.0.0.1` のみに bind し、ブラウザの `Origin` は同じポートの loopback origin だけを
+受け付ける。別 origin からの simple request / preflight は `403 origin_forbidden`。
 
-### `POST /reconcile`
+### `GET /health`
+`{ ok, service:"thaleia", port, anatomia, discutere, augur, genius, ludus, praeforma }`。
+上流が設定済かを bool で示す (疎通は見ない)。
+
+## 施策評価 (`routes/initiatives.ts`)
+
+### `POST /api/initiatives`
 ```jsonc
 // request
-{ "label": "PrivateGame", "pf_project": "<Praeforma project id>",
-  "anatomia_project": "<Anatomia project id>" }   // anatomia_project 省略時は pf_project を流用
-// response 200 = ReconcileResult + diff (feature/reconcile.md), data/<label>.json に保存
+{ "title": "...",
+  "kind": "new-content" | "improvement",
+  "project": "<Anatomia project id>",
+  "body": "<企画本文 Markdown>",
+  "discutere": { "gapId": "<design_gaps.id>" },   // 任意
+  "ludus": { "gameId": "..." },                   // 任意
+  "repoPath": "C:/path/to/repo" }                // 任意 (Augur CLI の --repo)
+// response 201 = Initiative (id / createdAt / updatedAt 付き)
 ```
-- `label` / `pf_project` 必須 (無ければ 400)
-- 上流未設定: `503 { error:"praeforma_unconfigured"|"anatomia_unconfigured", hint }`
-- 上流エラー: `502 { error:"upstream_failed", detail }`
-- 応答の `diff` = 保存前の最新と比較した前回比 (初回は `hasPrevious:false`)。保存時に
-  直前の最新は `data/history/<slug>/<generatedAt>.json` へ退避される
+- `title` / `kind` / `project` / `body` は必須。欠けたら `400 { error:"invalid_input", hint }`
+  (project は「未指定ならドメイン解析軸を skip」ではなく **入力時点で弾く**)
+- 本文が JSON でなければ `400 { error:"invalid_json" }`
 
-### `GET /reconcile?project=<label>`
-保存済スナップショットを返す。無ければ `404 { error:"no_snapshot" }`。
+### `GET /api/initiatives`
+`{ items: InitiativeSummary[] }`。`latest` (最新評価の total / verdict / confidence) と
+`history` (total の推移、古い順・最大 20 点) を含む。`updatedAt` 降順。
 
-### `POST /relay/anatomia`
-Praeforma の要件定義モード (studio) が呼ぶ **MUSA リレー受け口**。Praeforma → Thaleia →
-Anatomia の一方向 (ここで Praeforma は呼ばない)。詳細は [feature/relay.md](../feature/relay.md)。
+### `GET /api/initiatives/:id`
 ```jsonc
-// request (Praeforma musa-relay.ts MusaAnatomiaRequest と同形)
-{ "project": "<Anatomia project id>",
-  "target": { "kind": "domain|layout", "id": "...", "name": "...", "description": "..." },
-  "requirements": [{ "code","title","description","priority","category","acceptance":["..."] }],
-  "query": "<検索文>", "repo": "<任意>" }
-// response 200
-{ "nodes": [{ "key","label","type":"symbol|file","anatomia_ref":{ "path","symbol","kind" } }],
-  "edges": [{ "from","to","relation":"calls|depends|implements|related" }],
-  "summary": "<何を根拠に何件返したか>" }
+{ "initiative": { ... },
+  "evaluation": { /* Evaluation。 未評価なら null */ },
+  "diff": { "previousAt": "...|null", "totalDelta": 0, "verdictChanged": false,
+            "axisDeltas": [{ "axis":"ux", "delta": 0 }] },
+  "history": [{ "evaluatedAt","total","verdict","confidence" }] }
 ```
-- `project` / `target.kind` 必須 (無ければ 400)
-- Anatomia 未設定: `503 { error:"anatomia_unconfigured", hint }` (Praeforma は不要)
-- 上流エラー (project 不在など): `502 { error:"upstream_failed", detail }`
-- 対象ドメインが Anatomia の検出ドメインに無い場合は **空 nodes/edges + 理由 summary**
-  (mock に落とさない)
+- 施策が無ければ `404 { error:"initiative_not_found" }`
+- 初回評価では `diff.totalDelta = null` (前回が無いことを null で示す)
+
+### `POST /api/initiatives/:id/evaluate`
+5 軸 + 種別ルール + 集計を 1 回走らせ、`data/initiatives/<id>/evaluations/<ts>.json` に保存する。
+```jsonc
+// response 200
+{ "evaluation": { "axes":[{ "axis","score","confidence","evidence","missing" }],
+                  "discussion": { "personas":[...], "quadrantCounts":{...} } | null,
+                  "banality": {...} | null, "degrade": {...} | null,
+                  "total": 0, "verdict":"go|conditional|defer|no-go", "confidence": 0,
+                  "reasons":["..."], "conditions":["..."], "weights": {...} },
+  "diff": { ... } }
+```
+- **個々の上流失敗は 5xx にしない**。その軸の `missing` に積み、総合 confidence を下げる
+- 500 が返るのは Thaleia 側の不具合のときだけ (`{ error:"evaluation_failed", detail }`)
+- LLM (claude CLI) と上流を直列に呼ぶので応答は分単位になりうる
+
+### `GET /api/config`
+`{ anatomia, discutere, augur, genius, ludus, praeforma, weights, deferThreshold }`。
+ビューアが「未設定の上流」を注意書きに出すために使う。
+
+### `GET /`
+評価ビューア (SPA、ビルド不要)。施策一覧 (verdict と total の推移) → 詳細
+(5 軸レーダー / 総合 / verdict / 減点理由) → Di 四象限散布 (点 = ペルソナ、サイズ = 内部スコア、
+色 = 単独合否、クリックで opinion / consensus / traitFit / 閾値の内訳と発話) →
+improvement のデグレード内訳と「先に返済」→ evidence からの上流ディープリンク。
+
+## 残置機能
 
 ### `GET /api/trace?project=<id>&domain=<name>&max=<n>`
 対象ドメインの**関数粒度トレース** (実装関数 + 各関数の spec-links)。詳細は
 [feature/trace.md](../feature/trace.md)。
 ```jsonc
-// response 200 = TraceResult
 { "domain": "...", "matched": true,
   "functions": [{ "id","name","path","specLinks":[{ "clauseHeading","clauseFile","confidence","ratified" }] }],
   "summary": { "functionCount","linkedFunctions","truncated","totalImplementors" } }
 ```
 - `project` / `domain` 必須 (無ければ 400)、Anatomia 未設定 503、上流エラー 502
 - 対象ドメインが Anatomia に無ければ `matched:false` + `functions:[]` (mock を返さない)
-- 関数は `MAX_TRACE_FUNCTIONS`(200) で切り詰め (超過は `truncated:true` + `totalImplementors`)
 
 ### `GET /api/trace/spec?pfProject=<pfId>&anatomiaProject=<anId>&spec=<code>&max=<n>`
-**Pf spec 起点**の関数粒度トレース。Pf で spec→target ドメインを解決し、各 target ドメインの
-TraceResult を束ねる (要件↔関数の直結トレーサビリティ)。詳細は [feature/trace.md](../feature/trace.md)。
-```jsonc
-// response 200 = SpecTraceResult
-{ "specCode":"...", "specTitle":"...", "targetDomains":["..."],
-  "domains": [ /* TraceResult (上記 /api/trace と同形) */ ],
-  "summary": { "domainCount","matchedDomains","functionCount","linkedFunctions" } }
-```
-- `pfProject` / `anatomiaProject` / `spec` 必須 (無ければ 400)
-- Pf か Anatomia 未設定 `503 { error:"upstream_unconfigured" }`、上流エラー 502
-- spec code が Pf に無ければ `404 { error:"spec_not_found" }`
-- target ドメインの重複は正規化名で 1 つに畳む。未検出 target は `matched:false` のドメイン要素
+**Pf spec 起点**の関数粒度トレース。詳細は [feature/trace.md](../feature/trace.md)。
 
 ### `GET /api/links/worklist?project=<anId>&threshold=<0..1>&max=<n>`
-未批准 (`ratified:false`) / 低 confidence の spec-link を「要レビュー」で集める棚卸し。
-詳細は [feature/links.md](../feature/links.md)。
-```jsonc
-// response 200 = LinkWorklistResult
-{ "threshold":0.7,
-  "items": [{ "from","fromName","resolvedName","resolvedPath","clauseHeading","clauseFile",
-              "confidence","ratified","reasons":["unratified"|"low-confidence"] }],
-  "summary": { "totalLinks","flagged","unratified","lowConfidence","shown","truncated" } }
-```
-- `project` 必須 (無ければ 400)、Anatomia 未設定 503、上流エラー 502
-- `threshold` 省略/範囲外は `THALEIA_LINK_CONFIDENCE_THRESHOLD` (既定 0.7) を使う
-- 並びは未批准を先・confidence 昇順 (レビュー優先度順)、`MAX_WORKLIST_ITEMS`(300) で切り詰め
+未批准 / 低 confidence の spec-link 棚卸し。詳細は [feature/links.md](../feature/links.md)。
 
-### `GET /`
-突合専用ビューア (SPA、ビルド不要)。スナップショット一覧 → 突合マトリクス/仕様カバレッジ/
-ギャップ・ワークリストを表示し、各行から Praeforma(仕様編集)/Anatomia(実装閲覧)へ
-ディープリンクで送り出す。実装ありドメイン行の「関数 ▾」で `/api/trace`、仕様カバレッジ行の
-「関数 ▾」で `/api/trace/spec` を引いて関数粒度を展開する。詳細下部の「未批准 spec-link
-ワークリスト」セクションは `/api/links/worklist` を引いて要レビューのコード↔仕様リンクを並べる。
-下記 `/api/*` を読む。
-
-## 閲覧用 API (`routes/api.ts`、読み取り専用)
-
-### `GET /api/config`
-`{ praeformaWeb:bool, anatomiaWeb:bool, reconcileReady:bool }`。リンク先 web URL の設定有無と
-突合実行可否。ビューアが未設定の注意書きを出すために使う。
-
-### `GET /api/snapshots`
-`{ items: SnapshotSummary[] }`。保存済み突合のサマリ (project / generatedAt / summary /
-gapCount)、generatedAt 降順。トップのカード用。
-
-### `GET /api/snapshots/:label`
-1 件の ReconcileResult に**行ごとのディープリンクを付与**して返す (無ければ 404)。
-- `domainMatches[].links` / `sceneMatches[].links = { praeforma:string|null, anatomia:string|null }`
-  (その側が存在し、かつ web URL 設定済のときのみ URL。無ければ null)
-- `specCoverage[].praeformaUrl = string|null` (該当 spec を開くリンク)
-- `diff` = history の直前 run と比較した前回比 (無ければ `hasPrevious:false`)
-
-リンク URL は `links/deeplink.ts` の純粋関数で生成。web URL 未設定なら null を返し、
-ビューアは無効表示にする (無言で誤ったホストへリンクしない)。
-
-遷移先ルートは実フロントで確認済 (2026-06-26):
-- Praeforma `/projects/:pid?tab=domains|specs|layouts&focus=<x>` (ProjectShowPage、`web/src/main.tsx`)
-- Anatomia `/?project=<id>&focus=<x>` (管理パネル SPA、`src/adapters/web/server.ts` の `GET /`)
-
-パスと `tab`/`project` パラメータ名は実値に一致。ただし**両フロントは現状 URL クエリを
-読まない**ため、リンクは該当ページに着地するが個別エンティティへのフォーカスは未消費
-(将来フロントが `useSearchParams` で focus を読めば `deeplink.ts` 不変で効く)。
+### `GET /unified`, `GET /api/unified?anatomiaProject=<id>&pfProject=<id>`
+仕様↔ドメインの統合ビュー。詳細は [feature/unified-view.md](../feature/unified-view.md)。
 
 ## 上流クライアント契約
 
-### Praeforma (`clients/praeforma.ts`、bearer = Cernere service token)
-- `GET /api/projects/:pid/domains` → `{ items: [{ id, name, description }] }`
-- `GET /api/projects/:pid/layouts` → `{ items: [{ id, name, description }] }` (= シーン)
-- `GET /api/projects/:pid/specs` → `{ items: [{ id, code, title, status, priority }] }`
-- `GET /api/projects/:pid/specs/:sid` → `{ targets: [{ kind, refId }] }`
-  (`kind==="domain"`→domains, `kind==="layout"`→layouts を id→name で解決し
-  targetDomains/targetScenes にする)
-
 ### Anatomia (`clients/anatomia.ts`、loopback 無認証)
-- `GET /api/domains?project=<id>` → `{ domains: string[] }`
-  (実装関数を持つ検出ドメイン名のみ。存在 = implementorCount 1 とみなす)
-- `GET /api/projects/:id/screens` → `{ screens:[{ name, ... }] }` (検出 UI スクリーン=シーン。存在=実装あり)
-- `GET /api/projects/:id/spec-links` → `SpecLinkRow[]` (`{ from, fromName, clauseHeading, clauseFile, confidence, ratified }`)
-  (コード↔リポ spec 節リンク。`from` は関数 anchor id もしくはファイルパス。trace が関数へ join)
-- `GET /api/graph?project=<id>` → `{ nodes:[{ id,name,kind,sourceRange.filePath }], edges:[{ from,to,kind }] }`
-  (関数粒度のコードグラフ全量。relay が部分グラフへ絞り込む)
-- `GET /api/projects/:id/domain-view` → `{ views:[{ domain, implementors:string[] }] }`
-  (検出ドメイン → 実装 AnchorId 群。relay の domain アンカーに使う)
+| 経路 | 使う軸 |
+|---|---|
+| `GET /api/projects/:id/domains` → `[{ domain, implementorCount, conforms, violationCount }]` | 名寄せ / コスト |
+| `GET /api/projects/:id/domain-view` → `{ views:[{ domain, implementors:string[] }] }` | コスト / トレース |
+| `GET /api/graph?project=<id>` → `{ nodes:[{ id,name,kind,sourceRange.filePath }], edges:[...] }` | コスト / AI 実装可否 |
+| `GET /api/projects/:id/modules` → `{ modules:[...] }` | コスト |
+| `GET /api/projects/:id/hotspots` → 上位関数 (配列 or `{ hotspots:[] }`) | デグレード |
+| `GET /api/projects/:id/entrypoint-graph` → `EntryPointViewPayload` | fan-in |
+| `GET /api/projects/:id/business-domain-view` → `{ domains:[...] }` | 二層整合 |
+| `GET /api/projects/:id/program-domain-view` → `{ layers, proposals, modularity }` | 二層整合 / 返済 |
+| `GET /api/projects/:id/spec-links` → `SpecLinkRow[]` | AI 実装可否 / トレース |
+| `GET /api/projects/:id/scenes` → `{ merged:[{ id,name }] }` / `screens` → `{ screens:[{ name }] }` | UX |
+
+- **`refactoring-tasks` は POST (発行) のみで一覧 API が無い**。未返済の整理提案は
+  `program-domain-view` の `proposals` から読む (2026-09-03 実装で確認)
+- 404 / 409 (`not-prepared`) は `AnatomiaUnavailableError` にして軸の `missing` へ回す
+
+### Discutere (`clients/discutere.ts`、admin REST は `X-User-Id`/`X-User-Role`、loopback は admin 扱い)
+- `GET /api/admin/consensus/:gapId/personas` → `{ gapId, personas: [{ personaId, displayName,
+  traits, utterances, opinionScore, consensusScore, agreeRatio }] }` (Di `SPEC-THALEIA-PERSONA-CONSENSUS`)
+- `POST /api/admin/gaps` `{ title, description, gameId? }` → `201 { gapId, sessionId }`
+  (Di `SPEC-THALEIA-GAP-CREATION`)
+- `GET /learning/data?layer=games&limit=&detailLimit=` → `{ games:[{ id,title,mechanics,aesthetics }] }`
+  (mechanics / aesthetics テーブルの読み取り経路はこれだけ)
+
+### Augur (`clients/augur.ts`、CLI を spawn。常駐しない)
+- `node <AUGUR_BIN> tests list --repo <path> [--domain <d>] --json` → `TestRecord[]`
+- `node <AUGUR_BIN> review-plan --json` (stdin に `CreatePlanRequest`) → `{ stages, testCases }`
+- exit 1 = リクエスト不正 / exit 2 = Augur 内部エラー。どちらも `AugurUnavailableError` で missing へ
+
+### Genius (`clients/genius.ts`)
+- `POST /api/clone/query` `{ text, domain:"work", k }` → `{ cards: ScoredCard[], tookMs }`
+
+### Ludus (`clients/ludus.ts`、ファイル読み)
+- `<LUDUS_REPO_DIR>/spec/data/game-lexicon/**/*.toml` を再帰列挙し、トップレベルの
+  `id / name_ja / name_en / summary / tags / genres` だけ読む (TOML パーサ依存を増やさない)
+- 読めなかったファイルは黙って捨てず `skipped` に積み、凡庸性の `missing` になる
+
+### Praeforma (`clients/praeforma.ts`、bearer = Cernere service token) — 残置機能用
+- `GET /api/projects/:pid/domains` / `layouts` / `specs` / `specs/:sid`
 
 ## 注意
 
-- Praeforma の返却は Drizzle raw row (camelCase)。`id/name/code/title/refId/kind` のみ使う。
-- 上流が片方でも未設定なら突合は実行せず明示エラー (無言フォールバック禁止)。
+- 上流が未設定・未整備でも **mock に落とさない**。評価軸は `missing` を積んで confidence を下げ、
+  残置機能 (trace / links / unified) は 503 / 502 を返す (無言フォールバック禁止)。
+- LLM は `claude -p --model <THALEIA_CLAUDE_MODEL>` を spawn する。モデルを固定しないと
+  上限切れの巻き添えで無言終了するため、既定任せにしない。

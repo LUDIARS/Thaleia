@@ -1,8 +1,8 @@
-import { normalizeName } from '../reconcile/match.ts';
-import type { AnatomiaGraph } from '../relay/types.ts';
+import { normalizeName } from '../text/normalize.ts';
+import type { AnatomiaGraph } from '../clients/anatomia-types.ts';
 import type { AnatomiaSpecLink } from '../trace/types.ts';
 import type { PfSpecRow } from '../clients/praeforma.ts';
-import type { PfDomain } from '../reconcile/types.ts';
+import type { PfDomain } from '../clients/praeforma-types.ts';
 import type {
   UnifiedDomainView,
   UnifiedFunctionRef,

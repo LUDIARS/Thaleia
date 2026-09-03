@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildUnifiedView } from '../build.ts';
-import type { AnatomiaGraph } from '../../relay/types.ts';
+import type { AnatomiaGraph } from '../../clients/anatomia-types.ts';
 import type { AnatomiaSpecLink } from '../../trace/types.ts';
 
 const graph: AnatomiaGraph = {

@@ -28,8 +28,8 @@ export function mountUnifiedRoutes(app: Hono, config: ThaleiaConfig): void {
     try {
       const result = await runUnifiedView(an, { project: label ?? anatomiaProject, anatomiaProject, pfProject }, pf);
       return c.json(result);
-    } catch (e) {
-      return c.json({ error: 'upstream_failed', detail: String(e) }, 502);
+    } catch {
+      return c.json({ error: 'upstream_failed' }, 502);
     }
   });
 }

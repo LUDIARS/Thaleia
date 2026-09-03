@@ -1,0 +1,35 @@
+{
+  "name": "evaluation",
+  "description": "施策の評価。 5 軸のスコア算出 (純粋層) と上流取得 (engine 層)、 評価の集計・保存・名寄せ。 Di 議論軸は discussion-matrix が持つ。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)src/evaluators/[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)src/evaluators/__tests__/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)src/evaluators/ux/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)src/evaluators/cost/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)src/evaluators/ai-feasibility/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)src/evaluators/domain/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)src/aggregate/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)src/initiative/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)src/text/(?:.*/)?[^/]+$"
+    }
+  ]
+}
