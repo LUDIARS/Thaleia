@@ -88,7 +88,7 @@ export function loadConfig(): ThaleiaConfig {
     discutereWebUrl: firstEnv('DISCUTERE_WEB_URL') ?? firstEnv('DISCUTERE_BASE_URL', 'DISCUTERE_URL'),
     geniusWebUrl: firstEnv('GENIUS_WEB_URL') ?? firstEnv('GENIUS_BASE_URL', 'GENIUS_URL'),
     claudeBin: process.env.THALEIA_CLAUDE_BIN ?? 'claude',
-    claudeModel: process.env.THALEIA_CLAUDE_MODEL ?? 'claude-sonnet-5',
+    claudeModel: process.env.THALEIA_CLAUDE_MODEL ?? 'sonnet',
     claudeTimeoutMs: positiveInt(process.env.THALEIA_CLAUDE_TIMEOUT_MS, 120_000),
     weights: loadWeights(),
     deferThreshold: unitInterval(process.env.THALEIA_DEFER_THRESHOLD, DEFAULT_DEFER_THRESHOLD),
