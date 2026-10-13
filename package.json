@@ -11,7 +11,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ludiars/one-shot": "file:lib/lapilli/packages/one-shot",
     "@hono/node-server": "^1.13.7",
     "hono": "^4.6.14"
   },

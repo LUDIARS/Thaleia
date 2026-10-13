@@ -4,7 +4,7 @@
 // 必要とする場合がある (THALEIA_CLAUDE_BIN で wrapper を差せる)。 失敗時は無言 fallback
 // せず明示エラー (= 構造選択へ黙って戻さない。 呼ぶと決めたら成否を返す)。
 
-import { spawnOneShot as spawn } from '@ludiars/one-shot';
+import { spawn } from 'node:child_process';
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 

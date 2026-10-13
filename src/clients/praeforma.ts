@@ -6,6 +6,9 @@
 import type { PfDomain, PfLayout } from './praeforma-types.ts';
 import { fetchWithTimeout } from './fetch.ts';
 
+/** Pf の仕様一覧が既定の 50 件で切られないよう、十分に大きい取得上限を明示する。 */
+const PF_SPECS_LIMIT = 500;
+
 export interface PfSpecRow {
   id: string;
   code: string;
@@ -60,7 +63,7 @@ export function makePraeformaClient(opts: PraeformaClientOptions): PraeformaClie
     },
     async listSpecs(pid) {
       const data = await get<{ items: PfSpecRow[] }>(
-        `/api/projects/${encodeURIComponent(pid)}/specs`,
+        `/api/projects/${encodeURIComponent(pid)}/specs?limit=${PF_SPECS_LIMIT}`,
       );
       return data.items;
     },
