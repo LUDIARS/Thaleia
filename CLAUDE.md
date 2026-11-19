@@ -32,7 +32,7 @@ MUSA「9 女神」の **タレイア** = **施策設計ツール (成否リス�
   `rules/`・`aggregate/`(純粋) / `routes/`(HTTP) / `store/`(永続化) を分離。
   **LLM を呼ぶのは engine 層だけ**。純粋層は fixture でそのままテストできる状態に保つ。
 - ESM (`"type":"module"`)、import は `.ts` 拡張子付き (tsx + NodeNext)。
-- LLM は `claude -p --model <固定>` を spawn する。モデルを既定任せにしない
+- LLM は `claude -p --model <解決済みモデル>` を spawn する。モデルを既定任せにしない
   (上限切れの巻き添えで無言終了するため)。
 
 ## ビルドとテスト
@@ -69,7 +69,7 @@ AIFormat の分類フォルダに揃える (`data` / `feature` / `interface` / `
 | `PRAEFORMA_BASE_URL` / `PRAEFORMA_TOKEN` | (なし) | 残置機能 (spec 起点トレース / 統合ビュー) 用 |
 | `*_WEB_URL` | API base 流用 | evidence のディープリンク先。未設定ならリンクを出さない |
 | `THALEIA_CLAUDE_BIN` | `claude` | LLM 用 claude CLI (Windows は git-bash wrapper を差せる) |
-| `THALEIA_CLAUDE_MODEL` | `claude-sonnet-5` | `--model` に固定で渡すモデル |
+| `THALEIA_CLAUDE_MODEL` | `sonnet` | Claude の役割名、またはそのまま渡すモデル ID |
 | `THALEIA_CLAUDE_TIMEOUT_MS` | `120000` | LLM 1 回の timeout |
 | `THALEIA_WEIGHT_UX` 他 | 設計 §5 の既定 | 軸の重み。1 本でも上書きすると全体を正規化する |
 | `THALEIA_DEFER_THRESHOLD` | `0.7` | 見送り閾値 |

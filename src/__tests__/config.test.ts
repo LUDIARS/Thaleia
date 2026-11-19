@@ -1,5 +1,6 @@
 // config.ts の env 解決。 上流 URL と同じく「未設定なら null で、 勝手な既定値を作らない」を守る。
 
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, afterEach } from 'vitest';
 import { loadConfig } from '../config.ts';
 
@@ -34,5 +35,23 @@ describe('dataDir', () => {
   it('空文字は未設定と同じ扱い', () => {
     setEnv('THALEIA_DATA_DIR', '   ');
     expect(loadConfig().dataDir).toBeNull();
+  });
+});
+
+describe('claudeModel', () => {
+  it('設定例と同じ Claude の役割名を既定値にする', () => {
+    setEnv('THALEIA_CLAUDE_MODEL', undefined);
+    const example = readFileSync(new URL('../../.env.example', import.meta.url), 'utf8');
+    const config = loadConfig();
+
+    expect(config.claudeModel).toBe('sonnet');
+    expect(example.split(/\r?\n/)).toContain(`THALEIA_CLAUDE_MODEL=${config.claudeModel}`);
+  });
+
+  it('明示的なモデル ID を保持する', () => {
+    const explicitModel = 'claude-fixture-explicit';
+    setEnv('THALEIA_CLAUDE_MODEL', explicitModel);
+
+    expect(loadConfig().claudeModel).toBe(explicitModel);
   });
 });

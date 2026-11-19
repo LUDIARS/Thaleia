@@ -2,6 +2,8 @@
 // 評価リクエスト時に未設定なら mock に落とさず、 その軸を missing にする (無言 fallback 禁止)。
 
 import type { AxisWeights } from './initiative/types.ts';
+import { contract } from '../contracts/contract-runtime.ts'; /* augur-inject:import:db1ea55e */
+import augurContract_3d9ef393 from '../contracts/claude-model.contract.ts'; /* augur-inject:contract-predicate:d5dae09e */
 
 /** 総合スコアの重み既定値 (設計 §5)。 */
 export const DEFAULT_WEIGHTS: AxisWeights = {
@@ -51,7 +53,7 @@ export interface ThaleiaConfig {
   geniusWebUrl: string | null;
   /** LLM 呼び出しに使う claude CLI。 Windows は git-bash wrapper を差せる。 */
   claudeBin: string;
-  /** claude CLI に固定で渡すモデル。 既定任せは上限切れで無言終了するので必ず固定する。 */
+  /** Lapilli が CLI 呼び出し時に処理する Claude の役割名またはモデル ID。 */
   claudeModel: string;
   /** LLM 1 回あたりの timeout (ms)。 */
   claudeTimeoutMs: number;
@@ -96,6 +98,8 @@ export function loadConfig(): ThaleiaConfig {
     linkConfidenceThreshold: unitInterval(process.env.THALEIA_LINK_CONFIDENCE_THRESHOLD, 0.7),
   };
 }
+// @ts-expect-error augur-inject
+loadConfig = contract(loadConfig, { ...augurContract_3d9ef393, contractId: 'C-1', mode: 'observe', sample: 1, where: 'src/config.ts:71', rule: 'contract-wrap', id: '3d9ef393' }); /* augur-inject:contract-wrap:3d9ef393 */
 
 /** 指定した環境変数キーを順に見て、 最初に値が入っているものを返す。 */
 function firstEnv(...keys: string[]): string | null {

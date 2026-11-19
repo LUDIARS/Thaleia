@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "contractsDir": "contracts",
+  "importFrom": "../contracts/contract-runtime.ts",
+  "runtimeFile": "contracts/contract-runtime.ts",
+  "contracts": [
+    {
+      "id": "C-1",
+      "criterion": "C-1 loadConfig(): Claude モデルは未設定なら sonnet ロールを返し、明示設定があればその値を保持する",
+      "symbol": "loadConfig",
+      "file": "src/config.ts",
+      "module": "contracts/claude-model.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    }
+  ]
+}

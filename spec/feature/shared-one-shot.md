@@ -2,11 +2,14 @@
 
 necoの全リポジトリ共通化依頼（2026-10-03）に対応。
 `llm-assist` はLapilliの `@ludiars/one-shot` からClaudeを起動する。
-モデル既定値はSonnetロールを共通定義で具体的なIDへ解決し、明示設定は維持する。
+Actio: `actio:4d8078c7-142e-432b-8740-6d80568b97ed`。
+`THALEIA_CLAUDE_MODEL` の既定値と設定例は `sonnet`。
+Claude の役割名は Lapilli が実行直前に Concordia のモデル役割マップで解決する。
+マップに対応値がない場合、Lapilli は Claude CLI が対応する役割名をそのまま渡す。
+明示的に設定したモデル ID はそのまま CLI に渡す。
 stdin、応答解析、120秒の期限、例外契約はThaleiaが所有する。
 CLIの失敗を成功に変換せず、APIキーへの自動切替を行わない。
 復旧は本変更とLapilli依存の固定版を一緒に戻す。
-テスト・実推論・サービス再起動はこのセッションでは実施しない。
 
 新規 checkout では npm install 前に `git submodule update --init -- lib/lapilli`
 を実行する。Revisor の登録済み準備処理にも `lapilli-submodules` を追加し、

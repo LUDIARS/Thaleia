@@ -1,0 +1,7 @@
+{
+  "service": "thaleia",
+  "include": ["src/config.ts"],
+  "rules": {
+    "contract-wrap": true
+  }
+}
